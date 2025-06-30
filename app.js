@@ -7,7 +7,7 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const axios = require('axios');
 
-const app = express();
+app.use(express.static('public'));
 app.use(cors());
 app.use(express.json());
 
