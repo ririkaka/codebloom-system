@@ -1,121 +1,147 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8">
   <title>Làm bài - CodeBloom</title>
   <style>
-    body { font-family: Arial; padding: 20px; background: #f9f9f9; }
-    textarea { width: 100%; height: 200px; font-family: monospace; font-size: 14px; }
-    select, button { font-size: 16px; padding: 8px; margin-top: 10px; }
-    .box { background: #fff; padding: 20px; border-radius: 10px; box-shadow: 0 0 8px #ccc; margin-bottom: 20px; }
+    body {
+      font-family: Arial, sans-serif;
+      background: #f4f4f4;
+      padding: 30px;
+    }
+    .container {
+      max-width: 900px;
+      margin: auto;
+      background: white;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+    h2 {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    select, textarea, button {
+      width: 100%;
+      margin: 10px 0;
+    }
+    textarea {
+      height: 300px;
+      font-family: monospace;
+      font-size: 15px;
+    }
+    button {
+      padding: 12px;
+      font-size: 16px;
+      background-color: #28a745;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #218838;
+    }
+    .output {
+      background: #f1f1f1;
+      padding: 15px;
+      margin-top: 15px;
+      border-radius: 6px;
+    }
+    .error {
+      color: red;
+    }
   </style>
 </head>
 <body>
 
-  <h2>🎓 Xin chào: <span id="student-name"></span></h2>
+<div class="container">
+  <h2>📝 Làm bài CodeBloom</h2>
 
-  <div class="box">
-    <label for="questionSelect">📝 Chọn câu hỏi:</label>
-    <select id="questionSelect"></select>
-    <p id="question-content" style="margin-top: 10px; font-weight: bold;"></p>
-  </div>
+  <label for="questionSelect">🧠 Chọn câu hỏi:</label>
+  <select id="questionSelect"></select>
 
-  <div class="box">
-    <textarea id="code" placeholder="# Viết code Python tại đây..."></textarea><br />
-    <button id="submitBtn">📤 Nộp bài</button>
-    <div id="resultBox" style="margin-top: 15px; font-weight: bold;"></div>
-  </div>
+  <label for="codeInput">💻 Nhập mã chương trình:</label>
+  <textarea id="codeInput" placeholder="// Viết code tại đây..."></textarea>
 
-  <script>
-    const token = localStorage.getItem("token");
-    const student_id = localStorage.getItem("student_id");
-    document.getElementById("student-name").textContent = student_id || "Không rõ";
+  <button id="submitBtn">Chấm bài</button>
 
-    let questions = [];
-    let currentQuestion = null;
+  <div class="output" id="resultBox"></div>
+</div>
 
-    // ✅ Tải danh sách câu hỏi
-    async function loadQuestions() {
-      try {
-        const res = await fetch("https://codebloom-system.onrender.com/questions")
-        const data = await res.json();
+<script>
+  const API_BASE = "https://codebloom-system.onrender.com";
+  const token = localStorage.getItem("token");
 
-        if (data.length > 0) {
-          questions = data;
+  if (!token) {
+    alert("❌ Vui lòng đăng nhập trước!");
+    window.location.href = "login.html";
+  }
 
-          const select = document.getElementById("questionSelect");
-          select.innerHTML = "";
+  const questionSelect = document.getElementById("questionSelect");
+  const resultBox = document.getElementById("resultBox");
 
-          data.forEach(q => {
-            const option = document.createElement("option");
-            option.value = q.question_id;
-            option.textContent = `${q.question_id} - ${q.level}`;
-            select.appendChild(option);
-          });
+  async function loadQuestions() {
+    try {
+      const res = await fetch(`${API_BASE}/questions`);
+      const questions = await res.json();
 
-          // Hiện câu đầu tiên
-          selectQuestion(data[0].question_id);
-        } else {
-          document.getElementById("question-content").textContent = "Không có câu hỏi.";
-        }
-      } catch (err) {
-        alert("❌ Lỗi tải câu hỏi");
-        console.error(err);
-      }
+      if (!Array.isArray(questions)) throw new Error("Dữ liệu không hợp lệ!");
+
+      questions.forEach(q => {
+        const option = document.createElement("option");
+        option.value = q.question_id;
+        option.textContent = `${q.question_id} - ${q.title || 'Không tiêu đề'}`;
+        questionSelect.appendChild(option);
+      });
+
+    } catch (err) {
+      alert("❌ Lỗi tải câu hỏi");
+      console.error(err);
+    }
+  }
+
+  document.getElementById("submitBtn").addEventListener("click", async () => {
+    const code = document.getElementById("codeInput").value.trim();
+    const question_id = questionSelect.value;
+    resultBox.innerHTML = "";
+
+    if (!code) {
+      resultBox.innerHTML = "<p class='error'>⚠️ Vui lòng nhập code!</p>";
+      return;
     }
 
-    // ✅ Khi chọn 1 câu hỏi
-    function selectQuestion(question_id) {
-      currentQuestion = questions.find(q => q.question_id === question_id);
-      document.getElementById("question-content").textContent = currentQuestion?.content || "Không tìm thấy câu hỏi.";
+    try {
+      const res = await fetch(`${API_BASE}/submit`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ question_id, code })
+      });
 
-      // 🔄 Reset code + kết quả
-      document.getElementById("code").value = "";
-      document.getElementById("resultBox").textContent = "";
+      const data = await res.json();
+
+      if (res.ok) {
+        resultBox.innerHTML = `
+          <p><strong>Kết quả:</strong> ${data.result}</p>
+          <p><strong>Đầu ra thực tế:</strong> <pre>${data.actual_output}</pre></p>
+          <p><strong>Đầu ra mong đợi:</strong> <pre>${data.expected_output}</pre></p>
+        `;
+      } else {
+        resultBox.innerHTML = `<p class='error'>❌ ${data.error || 'Lỗi khi chấm bài'}</p>`;
+      }
+
+    } catch (err) {
+      resultBox.innerHTML = `<p class='error'>🚫 Không thể kết nối máy chủ</p>`;
+      console.error(err);
     }
+  });
 
-    // ✅ Xử lý chọn từ dropdown
-    document.getElementById("questionSelect").addEventListener("change", (e) => {
-      selectQuestion(e.target.value);
-    });
-
-    // ✅ Nộp bài
-    document.getElementById("submitBtn").addEventListener("click", async () => {
-      const code = document.getElementById("code").value;
-
-      if (!code || !currentQuestion) {
-        alert("❗ Vui lòng viết code và chọn câu hỏi!");
-        return;
-      }
-
-      try {
-        const res = await fetch("http://localhost:3000/submit", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            code,
-            question_id: currentQuestion.question_id,
-            student_id
-          })
-        });
-
-        const data = await res.json();
-
-        if (res.ok) {
-          document.getElementById("resultBox").textContent =
-            `${data.result} → Output: ${data.actual_output}, Kỳ vọng: ${data.expected_output}`;
-        } else {
-          document.getElementById("resultBox").textContent = "❌ Lỗi khi chấm bài";
-        }
-      } catch (err) {
-        alert("🚫 Không gửi được bài làm");
-        console.error(err);
-      }
-    });
-
-    // 🚀 Gọi lúc bắt đầu
-    loadQuestions();
-  </script>
+  // Khởi động
+  loadQuestions();
+</script>
 
 </body>
 </html>

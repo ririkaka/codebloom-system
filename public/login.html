@@ -88,13 +88,10 @@
         const data = await res.json();
 
         if (res.ok) {
-          // ✅ Lưu token và student_id
           localStorage.setItem("token", data.token);
           localStorage.setItem("student_id", student_id);
 
           alert("🎉 Đăng nhập thành công!");
-
-          // 👉 Chuyển sang trang làm bài
           window.location.href = "index.html";
         } else {
           errorBox.textContent = "❌ " + (data.error || "Sai thông tin đăng nhập");
