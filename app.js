@@ -21,9 +21,9 @@ client.connect()
     console.log("✅ Đã kết nối MongoDB!");
 
     const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`🚀 Server chạy tại http://localhost:${PORT}`);
-});
+    app.listen(PORT, () => {
+      console.log(`🚀 Server chạy tại http://localhost:${PORT}`);
+    });
   })
   .catch(err => {
     console.error("❌ Lỗi kết nối MongoDB:", err);
