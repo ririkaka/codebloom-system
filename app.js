@@ -7,6 +7,8 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const axios = require('axios');
 
+const app = express(); // 👈 Phải khai báo trước
+
 app.use(express.static('public'));
 app.use(cors());
 app.use(express.json());
