@@ -20,9 +20,10 @@ client.connect()
     db = client.db("codebloom");
     console.log("✅ Đã kết nối MongoDB!");
 
-    app.listen(3000, () => {
-      console.log("🚀 Server chạy tại http://localhost:3000");
-    });
+    const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`🚀 Server chạy tại http://localhost:${PORT}`);
+});
   })
   .catch(err => {
     console.error("❌ Lỗi kết nối MongoDB:", err);
