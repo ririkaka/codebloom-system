@@ -37,7 +37,7 @@
     // ✅ Tải danh sách câu hỏi
     async function loadQuestions() {
       try {
-        const res = await fetch("http://localhost:3000/questions");
+        const res = await fetch("https://codebloom-system.onrender.com/questions")
         const data = await res.json();
 
         if (data.length > 0) {
