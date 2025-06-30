@@ -115,3 +115,8 @@ app.post('/submit', verifyToken, async (req, res) => {
     res.status(500).json({ error: "Lỗi khi chấm bài" });
   }
 });
+const path = require('path');
+
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'login.html'));
+});
