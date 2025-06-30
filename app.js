@@ -3,20 +3,16 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const { MongoClient } = require('mongodb');
-const axios = require('axios');
-const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
-const path = require("path");
-app.use(express.static(path.join(__dirname, 'public')));
+const bcrypt = require('bcrypt');
+const axios = require('axios');
+
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-const JWT_SECRET = 'super_secret_key_cua_co_Tu'; // Cô có thể thay đổi nếu muốn bảo mật hơn
-
 const mongoUri = process.env.MONGODB_URI;
 const client = new MongoClient(mongoUri, { useUnifiedTopology: true });
-
 let db;
 
 client.connect()
@@ -32,33 +28,35 @@ client.connect()
     console.error("❌ Lỗi kết nối MongoDB:", err);
   });
 
-// 🔐 API đăng nhập
-app.post('/login', async (req, res) => {
+// Middleware kiểm tra JWT
+function verifyToken(req, res, next) {
+  const token = req.headers.authorization?.split(" ")[1];
+  if (!token) return res.status(403).json({ error: "Chưa đăng nhập" });
+
   try {
-    const { student_id, password } = req.body;
-    console.log("📥 Đăng nhập:", student_id);
-
-    const user = await db.collection('students').findOne({ student_id });
-
-    if (!user) {
-      return res.status(401).json({ error: "Sai student_id" });
-    }
-
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      return res.status(401).json({ error: "Sai mật khẩu" });
-    }
-
-    const token = jwt.sign({ student_id }, JWT_SECRET, { expiresIn: '2h' });
-    res.json({ token });
-
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    req.student_id = decoded.student_id;
+    next();
   } catch (err) {
-    console.error("❌ Lỗi login:", err.message || err);
-    res.status(500).json({ error: "Lỗi hệ thống khi đăng nhập" });
+    return res.status(401).json({ error: "Token không hợp lệ" });
   }
+}
+
+// Đăng nhập
+app.post('/login', async (req, res) => {
+  const { student_id, password } = req.body;
+
+  const student = await db.collection('students').findOne({ student_id });
+  if (!student) return res.status(404).json({ error: "Sai mã sinh viên" });
+
+  const isMatch = await bcrypt.compare(password, student.password);
+  if (!isMatch) return res.status(401).json({ error: "Sai mật khẩu" });
+
+  const token = jwt.sign({ student_id }, process.env.JWT_SECRET, { expiresIn: '2h' });
+  res.json({ message: "Đăng nhập thành công!", token });
 });
 
-// 📋 API lấy danh sách câu hỏi
+// Lấy danh sách câu hỏi
 app.get('/questions', async (req, res) => {
   try {
     const questions = await db.collection('questions').find({}).toArray();
@@ -68,16 +66,17 @@ app.get('/questions', async (req, res) => {
   }
 });
 
-// 🧠 API nộp bài và chấm
-app.post('/submit', async (req, res) => {
+// Chấm bài (bảo vệ bằng JWT)
+app.post('/submit', verifyToken, async (req, res) => {
   try {
-    const { question_id, code, student_id } = req.body;
+    const { question_id, code } = req.body;
+    const student_id = req.student_id;
 
     const question = await db.collection('questions').findOne({ question_id });
     if (!question) return res.status(404).json({ error: "Không tìm thấy câu hỏi" });
 
     const judge0Res = await axios.post("https://judge0-ce.p.rapidapi.com/submissions?base64_encoded=false&wait=true", {
-      language_id: 71, // Python 3
+      language_id: 71,
       source_code: code,
       stdin: question.test_input
     }, {
@@ -87,8 +86,6 @@ app.post('/submit', async (req, res) => {
         "X-RapidAPI-Host": "judge0-ce.p.rapidapi.com"
       }
     });
-
-    console.log("📩 Judge0:", judge0Res.data);
 
     const actual_output = judge0Res.data.stdout?.trim();
     const expected_output = question.expected_output?.trim();
@@ -111,7 +108,7 @@ app.post('/submit', async (req, res) => {
     });
 
   } catch (err) {
-    console.error("❌ Lỗi khi gọi Judge0:", err.response?.data || err.message);
+    console.error("❌ Lỗi khi chấm bài:", err.response?.data || err.message);
     res.status(500).json({ error: "Lỗi khi chấm bài" });
   }
 });
