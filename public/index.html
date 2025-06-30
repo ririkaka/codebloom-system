@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <title>Làm bài - CodeBloom</title>
+  <style>
+    body { font-family: Arial; padding: 20px; background: #f9f9f9; }
+    textarea { width: 100%; height: 200px; font-family: monospace; font-size: 14px; }
+    select, button { font-size: 16px; padding: 8px; margin-top: 10px; }
+    .box { background: #fff; padding: 20px; border-radius: 10px; box-shadow: 0 0 8px #ccc; margin-bottom: 20px; }
+  </style>
+</head>
+<body>
+
+  <h2>🎓 Xin chào: <span id="student-name"></span></h2>
+
+  <div class="box">
+    <label for="questionSelect">📝 Chọn câu hỏi:</label>
+    <select id="questionSelect"></select>
+    <p id="question-content" style="margin-top: 10px; font-weight: bold;"></p>
+  </div>
+
+  <div class="box">
+    <textarea id="code" placeholder="# Viết code Python tại đây..."></textarea><br />
+    <button id="submitBtn">📤 Nộp bài</button>
+    <div id="resultBox" style="margin-top: 15px; font-weight: bold;"></div>
+  </div>
+
+  <script>
+    const token = localStorage.getItem("token");
+    const student_id = localStorage.getItem("student_id");
+    document.getElementById("student-name").textContent = student_id || "Không rõ";
+
+    let questions = [];
+    let currentQuestion = null;
+
+    // ✅ Tải danh sách câu hỏi
+    async function loadQuestions() {
+      try {
+        const res = await fetch("http://localhost:3000/questions");
+        const data = await res.json();
+
+        if (data.length > 0) {
+          questions = data;
+
+          const select = document.getElementById("questionSelect");
+          select.innerHTML = "";
+
+          data.forEach(q => {
+            const option = document.createElement("option");
+            option.value = q.question_id;
+            option.textContent = `${q.question_id} - ${q.level}`;
+            select.appendChild(option);
+          });
+
+          // Hiện câu đầu tiên
+          selectQuestion(data[0].question_id);
+        } else {
+          document.getElementById("question-content").textContent = "Không có câu hỏi.";
+        }
+      } catch (err) {
+        alert("❌ Lỗi tải câu hỏi");
+        console.error(err);
+      }
+    }
+
+    // ✅ Khi chọn 1 câu hỏi
+    function selectQuestion(question_id) {
+      currentQuestion = questions.find(q => q.question_id === question_id);
+      document.getElementById("question-content").textContent = currentQuestion?.content || "Không tìm thấy câu hỏi.";
+
+      // 🔄 Reset code + kết quả
+      document.getElementById("code").value = "";
+      document.getElementById("resultBox").textContent = "";
+    }
+
+    // ✅ Xử lý chọn từ dropdown
+    document.getElementById("questionSelect").addEventListener("change", (e) => {
+      selectQuestion(e.target.value);
+    });
+
+    // ✅ Nộp bài
+    document.getElementById("submitBtn").addEventListener("click", async () => {
+      const code = document.getElementById("code").value;
+
+      if (!code || !currentQuestion) {
+        alert("❗ Vui lòng viết code và chọn câu hỏi!");
+        return;
+      }
+
+      try {
+        const res = await fetch("http://localhost:3000/submit", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            code,
+            question_id: currentQuestion.question_id,
+            student_id
+          })
+        });
+
+        const data = await res.json();
+
+        if (res.ok) {
+          document.getElementById("resultBox").textContent =
+            `${data.result} → Output: ${data.actual_output}, Kỳ vọng: ${data.expected_output}`;
+        } else {
+          document.getElementById("resultBox").textContent = "❌ Lỗi khi chấm bài";
+        }
+      } catch (err) {
+        alert("🚫 Không gửi được bài làm");
+        console.error(err);
+      }
+    });
+
+    // 🚀 Gọi lúc bắt đầu
+    loadQuestions();
+  </script>
+
+</body>
+</html>

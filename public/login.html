@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <title>Đăng nhập - CodeBloom</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f2f2f2;
+      padding: 40px;
+      display: flex;
+      justify-content: center;
+    }
+    .login-box {
+      background: white;
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      width: 360px;
+    }
+    h2 {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    label, input {
+      display: block;
+      width: 100%;
+      margin-bottom: 15px;
+    }
+    input {
+      padding: 10px;
+      font-size: 16px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+    }
+    button {
+      padding: 12px;
+      width: 100%;
+      background-color: #007bff;
+      color: white;
+      font-size: 16px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #0056b3;
+    }
+    .error {
+      color: red;
+      text-align: center;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="login-box">
+    <h2>🔐 Đăng nhập CodeBloom</h2>
+    <form id="loginForm">
+      <label for="student_id">Mã sinh viên</label>
+      <input type="text" id="student_id" required>
+
+      <label for="password">Mật khẩu</label>
+      <input type="password" id="password" required>
+
+      <button type="submit">Đăng nhập</button>
+    </form>
+
+    <div class="error" id="errorMsg"></div>
+  </div>
+
+  <script>
+    document.getElementById("loginForm").addEventListener("submit", async function (e) {
+      e.preventDefault();
+
+      const student_id = document.getElementById("student_id").value;
+      const password = document.getElementById("password").value;
+      const errorBox = document.getElementById("errorMsg");
+
+      try {
+        const res = await fetch("http://localhost:3000/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ student_id, password })
+        });
+
+        const data = await res.json();
+
+        if (res.ok) {
+          // ✅ Lưu token và student_id
+          localStorage.setItem("token", data.token);
+          localStorage.setItem("student_id", student_id);
+
+          alert("🎉 Đăng nhập thành công!");
+
+          // 👉 Chuyển sang trang làm bài
+          window.location.href = "index.html";
+        } else {
+          errorBox.textContent = "❌ " + (data.error || "Sai thông tin đăng nhập");
+        }
+      } catch (err) {
+        errorBox.textContent = "🚫 Không thể kết nối tới máy chủ";
+        console.error(err);
+      }
+    });
+  </script>
+
+</body>
+</html>

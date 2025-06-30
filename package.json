@@ -1,0 +1,20 @@
+{
+  "name": "codebloom-system",
+  "version": "1.0.0",
+  "description": "Hệ thống chấm bài CodeBloom",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js"
+  },
+  "author": "Co Tu",
+  "license": "ISC",
+  "dependencies": {
+    "axios": "^1.6.0",
+    "bcrypt": "^5.1.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "jsonwebtoken": "^9.0.2",
+    "mongodb": "^5.7.0"
+  }
+}
