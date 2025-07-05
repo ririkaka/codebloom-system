@@ -98,13 +98,7 @@
         option.value = q.question_id;
         option.textContent = `${q.question_id} - ${q.content || 'Không tiêu đề'}`;
         questionSelect.appendChild(option);
-	if (submitted.includes(q.question_id)) {
-      		item.classList.add("done");
-      		item.textContent += " ✅";
-    		}
-
-   	 item.addEventListener("click", () => loadQuestion(q));
-   	 questionList.appendChild(item);
+	
       });
 
     } catch (err) {

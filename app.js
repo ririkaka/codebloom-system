@@ -114,18 +114,3 @@ app.post('/submit', verifyToken, async (req, res) => {
     res.status(500).json({ error: "Lỗi khi chấm bài" });
   }
 });
-// API lấy danh sách câu hỏi đã làm
-app.get('/submitted-questions', verifyToken, async (req, res) => {
-  try {
-    const student_id = req.student_id;
-    const submissions = await db.collection('results')
-      .find({ student_id })
-      .project({ question_id: 1 })
-      .toArray();
-
-    const submittedIds = submissions.map(item => item.question_id);
-    res.json({ submitted: submittedIds });
-  } catch (err) {
-    res.status(500).json({ error: "Lỗi khi lấy danh sách câu hỏi đã làm" });
-  }
-});
