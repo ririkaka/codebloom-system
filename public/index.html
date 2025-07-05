@@ -10,7 +10,7 @@
       padding: 30px;
     }
     .container {
-      max-width: 900px;
+      max-width: 1000px;
       margin: auto;
       background: white;
       padding: 20px;
@@ -51,20 +51,31 @@
     .error {
       color: red;
     }
+    .question-item.done {
+      background-color: #d4edda;
+      border-left: 5px solid #28a745;
+    }
+    .question-list {
+      list-style: none;
+      padding: 0;
+    }
+    .question-item {
+      padding: 10px;
+      margin-bottom: 5px;
+      border-radius: 6px;
+      background: #f8f9fa;
+      cursor: pointer;
+    }
+    .question-item:hover {
+      background: #e2e6ea;
+    }
   </style>
 </head>
 <body>
-<style>
-  .question-item.done {
-    background-color: #d4edda;
-    border-left: 5px solid #28a745;
-  }
-</style>
 <div class="container">
   <h2>📝 Làm bài CodeBloom</h2>
 
-  <label for="questionSelect">🧠 Chọn câu hỏi:</label>
-  <select id="questionSelect"></select>
+  <ul id="questionList" class="question-list"></ul>
 
   <label for="codeInput">💻 Nhập mã chương trình:</label>
   <textarea id="codeInput" placeholder="// Viết code tại đây..."></textarea>
@@ -83,22 +94,44 @@
     window.location.href = "login.html";
   }
 
-  const questionSelect = document.getElementById("questionSelect");
+  let currentQuestionId = null;
+
   const resultBox = document.getElementById("resultBox");
+  const codeInput = document.getElementById("codeInput");
+  const questionList = document.getElementById("questionList");
 
   async function loadQuestions() {
     try {
-      const res = await fetch(`${API_BASE}/questions`);
-      const questions = await res.json();
+      const qRes = await fetch(`${API_BASE}/questions`);
+      const questions = await qRes.json();
 
-      if (!Array.isArray(questions)) throw new Error("Dữ liệu không hợp lệ!");
+      const sRes = await fetch(`${API_BASE}/submitted-questions`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const submitted = (await sRes.json()).submitted;
+
+      questionList.innerHTML = "";
 
       questions.forEach(q => {
-        const option = document.createElement("option");
-        option.value = q.question_id;
-        option.textContent = `${q.question_id} - ${q.content || 'Không tiêu đề'}`;
-        questionSelect.appendChild(option);
-	
+        const li = document.createElement("li");
+        li.className = "question-item";
+        li.textContent = `${q.question_id} - ${q.content}`;
+        li.dataset.id = q.question_id;
+
+        if (submitted.includes(q.question_id)) {
+          li.classList.add("done");
+          li.textContent += " ✅";
+        }
+
+        li.addEventListener("click", () => {
+          currentQuestionId = q.question_id;
+          codeInput.value = "";
+          resultBox.innerHTML = "";
+          document.querySelectorAll('.question-item').forEach(el => el.classList.remove('active'));
+          li.classList.add('active');
+        });
+
+        questionList.appendChild(li);
       });
 
     } catch (err) {
@@ -108,12 +141,12 @@
   }
 
   document.getElementById("submitBtn").addEventListener("click", async () => {
-    const code = document.getElementById("codeInput").value.trim();
-    const question_id = questionSelect.value;
+    const code = codeInput.value.trim();
+    const question_id = currentQuestionId;
     resultBox.innerHTML = "";
 
-    if (!code) {
-      resultBox.innerHTML = "<p class='error'>⚠️ Vui lòng nhập code!</p>";
+    if (!code || !question_id) {
+      resultBox.innerHTML = "<p class='error'>⚠️ Vui lòng chọn câu hỏi và nhập code!</p>";
       return;
     }
 
@@ -135,6 +168,7 @@
           <p><strong>Đầu ra thực tế:</strong> <pre>${data.actual_output}</pre></p>
           <p><strong>Đầu ra mong đợi:</strong> <pre>${data.expected_output}</pre></p>
         `;
+        loadQuestions(); // cập nhật lại màu sau khi nộp
       } else {
         resultBox.innerHTML = `<p class='error'>❌ ${data.error || 'Lỗi khi chấm bài'}</p>`;
       }
@@ -145,7 +179,6 @@
     }
   });
 
-  // Khởi động
   loadQuestions();
 </script>
 

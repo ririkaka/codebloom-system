@@ -3,13 +3,13 @@ const express = require('express');
 const cors = require('cors');
 const { MongoClient } = require('mongodb');
 const jwt = require('jsonwebtoken');
-const bcrypt = require('bcryptjs'); // dùng bcryptjs để tránh lỗi build trên Render
+const bcrypt = require('bcryptjs'); // dùng cho Render
 const axios = require('axios');
 
 const app = express();
 app.use(cors());
 app.use(express.json());
-app.use(express.static('public')); // để phục vụ các file HTML frontend
+app.use(express.static('public')); // phục vụ login.html, index.html...
 
 // Kết nối MongoDB
 const mongoUri = process.env.MONGODB_URI;
@@ -44,7 +44,7 @@ function verifyToken(req, res, next) {
   }
 }
 
-// Route: Đăng nhập
+// Đăng nhập
 app.post('/login', async (req, res) => {
   const { student_id, password } = req.body;
 
@@ -58,7 +58,7 @@ app.post('/login', async (req, res) => {
   res.json({ message: "Đăng nhập thành công!", token });
 });
 
-// Route: Lấy danh sách câu hỏi
+// Lấy danh sách câu hỏi
 app.get('/questions', async (req, res) => {
   try {
     const questions = await db.collection('questions').find({}).toArray();
@@ -68,7 +68,25 @@ app.get('/questions', async (req, res) => {
   }
 });
 
-// Route: Nộp bài, chấm điểm
+// Lấy danh sách các câu hỏi mà sinh viên đã làm
+app.get('/submitted-questions', verifyToken, async (req, res) => {
+  try {
+    const student_id = req.student_id;
+
+    const results = await db.collection('results')
+      .find({ student_id })
+      .project({ question_id: 1 })
+      .toArray();
+
+    const submitted = [...new Set(results.map(r => r.question_id))]; // loại bỏ trùng
+
+    res.json({ submitted });
+  } catch (err) {
+    res.status(500).json({ error: "Lỗi truy vấn kết quả!" });
+  }
+});
+
+// Chấm bài
 app.post('/submit', verifyToken, async (req, res) => {
   try {
     const { question_id, code } = req.body;
@@ -78,7 +96,7 @@ app.post('/submit', verifyToken, async (req, res) => {
     if (!question) return res.status(404).json({ error: "Không tìm thấy câu hỏi" });
 
     const judge0Res = await axios.post("https://judge0-ce.p.rapidapi.com/submissions?base64_encoded=false&wait=true", {
-      language_id: 71, // C++ (GCC)
+      language_id: 71, // C++
       source_code: code,
       stdin: question.test_input
     }, {
