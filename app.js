@@ -1,17 +1,15 @@
-// app.js
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const { MongoClient } = require('mongodb');
 const jwt = require('jsonwebtoken');
-const bcrypt = require('bcryptjs');
+const bcrypt = require('bcryptjs'); // dùng bcryptjs để tránh lỗi build trên Render
 const axios = require('axios');
 
 const app = express();
-
 app.use(cors());
 app.use(express.json());
-app.use(express.static('public')); // phục vụ login.html, index.html,...
+app.use(express.static('public')); // để phục vụ các file HTML frontend
 
 // Kết nối MongoDB
 const mongoUri = process.env.MONGODB_URI;
@@ -32,7 +30,7 @@ client.connect()
     console.error("❌ Lỗi kết nối MongoDB:", err);
   });
 
-// Middleware kiểm tra JWT
+// Middleware xác thực JWT
 function verifyToken(req, res, next) {
   const token = req.headers.authorization?.split(" ")[1];
   if (!token) return res.status(403).json({ error: "Chưa đăng nhập" });
@@ -46,37 +44,31 @@ function verifyToken(req, res, next) {
   }
 }
 
-// API Đăng nhập
+// Route: Đăng nhập
 app.post('/login', async (req, res) => {
   const { student_id, password } = req.body;
 
-  try {
-    const student = await db.collection('students').findOne({ student_id });
-    if (!student) return res.status(404).json({ error: "Sai mã sinh viên" });
+  const student = await db.collection('students').findOne({ student_id });
+  if (!student) return res.status(404).json({ error: "Sai mã sinh viên" });
 
-    const isMatch = await bcrypt.compare(password, student.password);
-    if (!isMatch) return res.status(401).json({ error: "Sai mật khẩu" });
+  const isMatch = await bcrypt.compare(password, student.password);
+  if (!isMatch) return res.status(401).json({ error: "Sai mật khẩu" });
 
-    const token = jwt.sign({ student_id }, process.env.JWT_SECRET, { expiresIn: '2h' });
-    res.json({ message: "Đăng nhập thành công!", token });
-  } catch (err) {
-    console.error("❌ Lỗi đăng nhập:", err);
-    res.status(500).json({ error: "Lỗi server" });
-  }ss
+  const token = jwt.sign({ student_id }, process.env.JWT_SECRET, { expiresIn: '2h' });
+  res.json({ message: "Đăng nhập thành công!", token });
 });
 
-// API lấy câu hỏi
+// Route: Lấy danh sách câu hỏi
 app.get('/questions', async (req, res) => {
   try {
-    const question = await db.collection('questions').findOne({ question_id });
+    const questions = await db.collection('questions').find({}).toArray();
     res.json(questions);
   } catch (err) {
-    console.error("❌ Lỗi truy vấn câu hỏi:", err);
-    res.status(500).json({ error: "Lỗi truy vấn câu hỏi" });
+    res.status(500).json({ error: "Lỗi truy vấn câu hỏi!" });
   }
 });
 
-// API chấm bài
+// Route: Nộp bài, chấm điểm
 app.post('/submit', verifyToken, async (req, res) => {
   try {
     const { question_id, code } = req.body;
@@ -86,7 +78,7 @@ app.post('/submit', verifyToken, async (req, res) => {
     if (!question) return res.status(404).json({ error: "Không tìm thấy câu hỏi" });
 
     const judge0Res = await axios.post("https://judge0-ce.p.rapidapi.com/submissions?base64_encoded=false&wait=true", {
-      language_id: 71, // Python 3
+      language_id: 71, // C++ (GCC)
       source_code: code,
       stdin: question.test_input
     }, {
@@ -97,8 +89,8 @@ app.post('/submit', verifyToken, async (req, res) => {
       }
     });
 
-    const actual_output = judge0Res.data.stdout?.trim();
-    const expected_output = question.expected_output?.trim();
+    const actual_output = judge0Res.data.stdout?.trim() || "";
+    const expected_output = question.expected_output?.trim() || "";
     const isCorrect = actual_output === expected_output;
 
     await db.collection('results').insertOne({
