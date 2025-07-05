@@ -54,7 +54,12 @@
   </style>
 </head>
 <body>
-
+<style>
+  .question-item.done {
+    background-color: #d4edda;
+    border-left: 5px solid #28a745;
+  }
+</style>
 <div class="container">
   <h2>📝 Làm bài CodeBloom</h2>
 
@@ -93,6 +98,13 @@
         option.value = q.question_id;
         option.textContent = `${q.question_id} - ${q.content || 'Không tiêu đề'}`;
         questionSelect.appendChild(option);
+	if (submitted.includes(q.question_id)) {
+      		item.classList.add("done");
+      		item.textContent += " ✅";
+    		}
+
+   	 item.addEventListener("click", () => loadQuestion(q));
+   	 questionList.appendChild(item);
       });
 
     } catch (err) {
