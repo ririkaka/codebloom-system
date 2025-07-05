@@ -91,7 +91,7 @@
       questions.forEach(q => {
         const option = document.createElement("option");
         option.value = q.question_id;
-        option.textContent = `${q.question_id} - ${q.title || 'Không tiêu đề'}`;
+        option.textContent = `${q.question_id} - ${q.content || 'Không tiêu đề'}`;
         questionSelect.appendChild(option);
       });
 
