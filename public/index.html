@@ -127,11 +127,11 @@
   const codeInput = document.getElementById("codeInput");
   const questionSelect = document.getElementById("questionSelect");
   const resultBox = document.getElementById("resultBox");
-  const doneBtn = document.getElementById("doneBtn");
 
   let questions = [];
   let correctCount = 0;
   let wrongCount = 0;
+  let answeredQuestions = {}; // lưu các câu đã nộp
 
   async function loadQuestions() {
     try {
@@ -145,7 +145,6 @@
         item.dataset.id = q.question_id;
 
         item.addEventListener("click", () => {
-          // Đổi màu câu đang chọn
           document.querySelectorAll(".question-item").forEach(el => el.classList.remove("active"));
           item.classList.add("active");
 
@@ -168,8 +167,19 @@
     const question_id = questionSelect.value;
     resultBox.innerHTML = "";
 
+    if (!question_id) {
+      resultBox.innerHTML = "<p class='error'>⚠️ Vui lòng chọn câu hỏi!</p>";
+      return;
+    }
+
     if (!code) {
       resultBox.innerHTML = "<p class='error'>⚠️ Vui lòng nhập code!</p>";
+      return;
+    }
+
+    // 🔒 Không cho nộp lại
+    if (answeredQuestions[question_id]) {
+      resultBox.innerHTML = "<p class='error'>⚠️ Câu hỏi này đã được nộp!</p>";
       return;
     }
 
@@ -186,19 +196,20 @@
       const data = await res.json();
 
       if (res.ok) {
-        // Đánh dấu là đã làm
+        const isCorrect = data.result.includes("Chính xác");
+
+        // đánh dấu đã nộp
+        answeredQuestions[question_id] = {
+          result: isCorrect ? "Đúng" : "Sai"
+        };
+
+        if (isCorrect) correctCount++;
+        else wrongCount++;
+
         const activeItem = document.querySelector(`.question-item[data-id='${question_id}']`);
         if (activeItem) activeItem.classList.add("done");
 
-        // Lưu thống kê
-        if (data.result.includes("Chính xác")) {
-          correctCount++;
-        } else {
-          wrongCount++;
-        }
-
         resultBox.innerHTML = "<p>✅ Bài đã được nộp!</p>";
-
       } else {
         resultBox.innerHTML = `<p class='error'>❌ ${data.error || 'Lỗi khi chấm bài'}</p>`;
       }
@@ -209,7 +220,7 @@
     }
   });
 
-  doneBtn.addEventListener("click", () => {
+  document.getElementById("doneBtn").addEventListener("click", async () => {
     resultBox.innerHTML = `
       <p><strong>📊 Tổng kết:</strong></p>
       <ul>
@@ -217,9 +228,31 @@
         <li>❌ Số câu sai: <strong>${wrongCount}</strong></li>
       </ul>
     `;
+
+    // 📤 Gửi thống kê lên server
+    try {
+      const res = await fetch(`${API_BASE}/summary`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          student_id,
+          correct: correctCount,
+          wrong: wrongCount,
+          submitted_at: new Date()
+        })
+      });
+
+      if (!res.ok) {
+        console.warn("❌ Không lưu được thống kê tổng kết");
+      }
+    } catch (err) {
+      console.error("Lỗi khi gửi thống kê:", err);
+    }
   });
 
-  // Bắt đầu
   loadQuestions();
 </script>
 
