@@ -21,14 +21,31 @@
       text-align: center;
       margin-bottom: 20px;
     }
-    select, textarea, button {
-      width: 100%;
-      margin: 10px 0;
+    ul#questionList {
+      list-style: none;
+      padding: 0;
+      margin-bottom: 20px;
+    }
+    li.question-item {
+      padding: 10px;
+      border: 1px solid #ccc;
+      margin-bottom: 8px;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    li.question-item.done {
+      background-color: #d4edda;
+      border-left: 5px solid #28a745;
+    }
+    li.question-item:hover {
+      background-color: #f0f8ff;
     }
     textarea {
+      width: 100%;
       height: 300px;
       font-family: monospace;
       font-size: 15px;
+      margin-top: 10px;
     }
     button {
       padding: 12px;
@@ -37,6 +54,7 @@
       color: white;
       border: none;
       border-radius: 6px;
+      margin-top: 10px;
       cursor: pointer;
     }
     button:hover {
@@ -51,36 +69,19 @@
     .error {
       color: red;
     }
-    .question-item.done {
-      background-color: #d4edda;
-      border-left: 5px solid #28a745;
-    }
-    .question-list {
-      list-style: none;
-      padding: 0;
-    }
-    .question-item {
-      padding: 10px;
-      margin-bottom: 5px;
-      border-radius: 6px;
-      background: #f8f9fa;
-      cursor: pointer;
-    }
-    .question-item:hover {
-      background: #e2e6ea;
-    }
   </style>
 </head>
 <body>
+
 <div class="container">
   <h2>📝 Làm bài CodeBloom</h2>
 
-  <ul id="questionList" class="question-list"></ul>
+  <ul id="questionList"></ul>
 
   <label for="codeInput">💻 Nhập mã chương trình:</label>
   <textarea id="codeInput" placeholder="// Viết code tại đây..."></textarea>
 
-  <button id="submitBtn">Chấm bài</button>
+  <button id="submitBtn" disabled>Chấm bài</button>
 
   <div class="output" id="resultBox"></div>
 </div>
@@ -94,58 +95,50 @@
     window.location.href = "login.html";
   }
 
-  let currentQuestionId = null;
-
+  const questionList = document.getElementById("questionList");
   const resultBox = document.getElementById("resultBox");
   const codeInput = document.getElementById("codeInput");
-  const questionList = document.getElementById("questionList");
+  const submitBtn = document.getElementById("submitBtn");
+
+  let currentQuestionId = null;
+  const doneQuestions = new Set();
 
   async function loadQuestions() {
     try {
-      const qRes = await fetch(`${API_BASE}/questions`);
-      const questions = await qRes.json();
-
-      const sRes = await fetch(`${API_BASE}/submitted-questions`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      const submitted = (await sRes.json()).submitted;
+      const res = await fetch(`${API_BASE}/questions`);
+      const questions = await res.json();
 
       questionList.innerHTML = "";
-
       questions.forEach(q => {
         const li = document.createElement("li");
-        li.className = "question-item";
-        li.textContent = `${q.question_id} - ${q.content}`;
+        li.textContent = `${q.question_id} - ${q.content || 'Không tiêu đề'}`;
+        li.classList.add("question-item");
         li.dataset.id = q.question_id;
-
-        if (submitted.includes(q.question_id)) {
-          li.classList.add("done");
-          li.textContent += " ✅";
-        }
 
         li.addEventListener("click", () => {
           currentQuestionId = q.question_id;
-          codeInput.value = "";
+          submitBtn.disabled = false;
+          codeInput.value = ""; // Xoá code cũ khi chọn câu mới
           resultBox.innerHTML = "";
-          document.querySelectorAll('.question-item').forEach(el => el.classList.remove('active'));
-          li.classList.add('active');
+
+          // Bỏ chọn các câu khác
+          document.querySelectorAll(".question-item").forEach(item => {
+            item.classList.remove("selected");
+          });
+          li.classList.add("selected");
         });
 
         questionList.appendChild(li);
       });
-
     } catch (err) {
       alert("❌ Lỗi tải câu hỏi");
       console.error(err);
     }
   }
 
-  document.getElementById("submitBtn").addEventListener("click", async () => {
+  submitBtn.addEventListener("click", async () => {
     const code = codeInput.value.trim();
-    const question_id = currentQuestionId;
-    resultBox.innerHTML = "";
-
-    if (!code || !question_id) {
+    if (!code || !currentQuestionId) {
       resultBox.innerHTML = "<p class='error'>⚠️ Vui lòng chọn câu hỏi và nhập code!</p>";
       return;
     }
@@ -157,7 +150,7 @@
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`
         },
-        body: JSON.stringify({ question_id, code })
+        body: JSON.stringify({ question_id: currentQuestionId, code })
       });
 
       const data = await res.json();
@@ -168,7 +161,14 @@
           <p><strong>Đầu ra thực tế:</strong> <pre>${data.actual_output}</pre></p>
           <p><strong>Đầu ra mong đợi:</strong> <pre>${data.expected_output}</pre></p>
         `;
-        loadQuestions(); // cập nhật lại màu sau khi nộp
+
+        // Đánh dấu đã làm
+        doneQuestions.add(currentQuestionId);
+        document.querySelectorAll(".question-item").forEach(item => {
+          if (item.dataset.id === currentQuestionId) {
+            item.classList.add("done");
+          }
+        });
       } else {
         resultBox.innerHTML = `<p class='error'>❌ ${data.error || 'Lỗi khi chấm bài'}</p>`;
       }
