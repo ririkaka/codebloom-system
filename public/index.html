@@ -6,110 +6,98 @@
   <style>
     body {
       font-family: Arial, sans-serif;
-      background: #f4f4f4;
       margin: 0;
-      padding: 0;
+      background: #f2f2f2;
     }
     .container {
       display: flex;
       height: 100vh;
     }
-    .left {
-      width: 35%;
-      background: #fff;
-      border-right: 1px solid #ccc;
-      overflow-y: auto;
+    .sidebar {
+      width: 30%;
+      background: #ffffff;
+      border-right: 1px solid #ddd;
       padding: 20px;
+      overflow-y: auto;
     }
-    .right {
-      flex: 1;
-      padding: 30px;
-      background: #f9f9f9;
-      display: flex;
-      flex-direction: column;
+    .sidebar h3 {
+      margin-top: 0;
     }
     .question-item {
-      padding: 12px;
-      margin-bottom: 10px;
+      padding: 10px;
+      border: 1px solid #ddd;
       border-radius: 6px;
+      margin-bottom: 10px;
       cursor: pointer;
-      border-left: 5px solid transparent;
-      background-color: #f1f1f1;
-    }
-    .question-item:hover {
-      background-color: #e2e2e2;
     }
     .question-item.active {
-      background-color: #fff3cd;
-      border-left-color: #ffc107;
+      background-color: #cce5ff;
+      border-left: 5px solid #007bff;
     }
     .question-item.done {
       background-color: #d4edda;
-      border-left-color: #28a745;
+      border-left: 5px solid #28a745;
+    }
+    .main {
+      width: 70%;
+      padding: 20px;
     }
     textarea {
       width: 100%;
       height: 300px;
       font-family: monospace;
       font-size: 15px;
-      padding: 10px;
-      border: 1px solid #ccc;
-      border-radius: 6px;
-      resize: vertical;
     }
     button {
-      padding: 12px;
+      padding: 12px 20px;
       font-size: 16px;
-      color: white;
       border: none;
       border-radius: 6px;
       cursor: pointer;
-      margin-top: 10px;
+      margin-right: 10px;
     }
     #submitBtn {
-      background-color: #28a745;
-    }
-    #submitBtn:hover {
-      background-color: #218838;
-    }
-    #doneBtn {
       background-color: #007bff;
+      color: white;
     }
-    #doneBtn:hover {
-      background-color: #0056b3;
+    #submitBtn:disabled {
+      background-color: #ccc;
     }
-    .output {
-      background: #fff;
-      padding: 15px;
+    #finishBtn {
+      background-color: #28a745;
+      color: white;
+    }
+    #resultBox {
       margin-top: 15px;
-      border-radius: 6px;
-      box-shadow: 0 0 5px rgba(0,0,0,0.1);
     }
-    .error {
-      color: red;
+    .timer {
+      text-align: right;
+      font-weight: bold;
+      font-size: 18px;
+      margin-bottom: 10px;
     }
   </style>
 </head>
 <body>
 
 <div class="container">
-  <div class="left">
-    <h3>📚 Danh sách câu hỏi</h3>
+  <div class="sidebar">
+    <h3>🧠 Danh sách câu hỏi</h3>
     <div id="questionList"></div>
   </div>
+  <div class="main">
+    <div class="timer">⏳ Còn lại: <span id="timeLeft">30:00</span></div>
 
-  <div class="right">
-    <h2>📝 Làm bài CodeBloom</h2>
+    <h3 id="questionTitle">Chọn một câu hỏi để bắt đầu</h3>
 
-    <input type="hidden" id="questionSelect">
+    <textarea id="codeInput" placeholder="// Viết code tại đây..." disabled></textarea>
 
-    <label for="codeInput">💻 Nhập mã chương trình:</label>
-    <textarea id="codeInput" placeholder="// Viết code tại đây..." onpaste="return false;" oncopy="return false;"></textarea>
+    <div style="margin-top: 10px;">
+      <button id="submitBtn" disabled>Nộp bài</button>
+      <button id="finishBtn">Xong</button>
+    </div>
 
-    <button id="submitBtn">📤 Nộp bài</button>
-    <button id="doneBtn">✅ Xong</button>
-
-    <div class="output" id="resultBox"></div>
+    <div id="resultBox"></div>
   </div>
 </div>
 
@@ -117,144 +105,124 @@
   const API_BASE = "https://codebloom-system.onrender.com";
   const token = localStorage.getItem("token");
   const student_id = localStorage.getItem("student_id");
-
-  if (!token) {
-    alert("❌ Vui lòng đăng nhập trước!");
-    window.location.href = "login.html";
-  }
-
+  const maxTime = 30 * 60 * 1000; // 30 phút
   const questionList = document.getElementById("questionList");
   const codeInput = document.getElementById("codeInput");
-  const questionSelect = document.getElementById("questionSelect");
+  const submitBtn = document.getElementById("submitBtn");
+  const finishBtn = document.getElementById("finishBtn");
   const resultBox = document.getElementById("resultBox");
+  const questionTitle = document.getElementById("questionTitle");
 
   let questions = [];
-  let correctCount = 0;
-  let wrongCount = 0;
-  let answeredQuestions = {}; // lưu các câu đã nộp
+  let selectedQuestion = null;
+  const doneQuestions = {};
+
+  // ⏱ Khởi tạo đếm ngược
+  function updateCountdown() {
+    const startTime = parseInt(localStorage.getItem("startTime") || "0");
+    const now = Date.now();
+    const elapsed = now - startTime;
+    const remaining = maxTime - elapsed;
+    const timeBox = document.getElementById("timeLeft");
+
+    if (remaining <= 0) {
+      clearInterval(timerInterval);
+      alert("⏰ Hết giờ!");
+      codeInput.disabled = true;
+      submitBtn.disabled = true;
+      return;
+    }
+
+    const minutes = Math.floor(remaining / 60000);
+    const seconds = Math.floor((remaining % 60000) / 1000);
+    timeBox.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+  }
+  const timerInterval = setInterval(updateCountdown, 1000);
+  updateCountdown();
 
   async function loadQuestions() {
-    try {
-      const res = await fetch(`${API_BASE}/questions`);
-      questions = await res.json();
-
-      questions.forEach(q => {
-        const item = document.createElement("div");
-        item.className = "question-item";
-        item.textContent = `${q.question_id} - ${q.content}`;
-        item.dataset.id = q.question_id;
-
-        item.addEventListener("click", () => {
-          document.querySelectorAll(".question-item").forEach(el => el.classList.remove("active"));
-          item.classList.add("active");
-
-          questionSelect.value = q.question_id;
-          codeInput.value = "";
-          resultBox.innerHTML = "";
-        });
-
-        questionList.appendChild(item);
-      });
-
-    } catch (err) {
-      alert("❌ Lỗi tải câu hỏi");
-      console.error(err);
-    }
+    const res = await fetch(`${API_BASE}/questions`);
+    questions = await res.json();
+    questions.forEach(q => {
+      const div = document.createElement("div");
+      div.className = "question-item";
+      div.textContent = `${q.question_id} - ${q.content}`;
+      div.dataset.id = q.question_id;
+      div.onclick = () => selectQuestion(q, div);
+      questionList.appendChild(div);
+    });
   }
 
-  document.getElementById("submitBtn").addEventListener("click", async () => {
-    const code = codeInput.value.trim();
-    const question_id = questionSelect.value;
+  function selectQuestion(q, element) {
+    if (selectedQuestion?.element) {
+      selectedQuestion.element.classList.remove("active");
+    }
+    selectedQuestion = { data: q, element };
+    element.classList.add("active");
+    questionTitle.textContent = `🧠 ${q.question_id} - ${q.content}`;
+    codeInput.value = "";
+    codeInput.disabled = !!doneQuestions[q.question_id];
+    submitBtn.disabled = !!doneQuestions[q.question_id];
     resultBox.innerHTML = "";
+  }
 
-    if (!question_id) {
-      resultBox.innerHTML = "<p class='error'>⚠️ Vui lòng chọn câu hỏi!</p>";
-      return;
+  submitBtn.onclick = async () => {
+    const code = codeInput.value.trim();
+    if (!code || !selectedQuestion) return alert("⚠️ Chưa chọn câu hỏi hoặc chưa nhập code!");
+
+    submitBtn.disabled = true;
+
+    const res = await fetch(`${API_BASE}/submit`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify({ question_id: selectedQuestion.data.question_id, code })
+    });
+
+    const data = await res.json();
+    if (res.ok) {
+      doneQuestions[selectedQuestion.data.question_id] = data.result;
+      selectedQuestion.element.classList.add("done");
+      alert("📥 Bài đã được nộp!");
+      codeInput.disabled = true;
+    } else {
+      alert("❌ Có lỗi xảy ra: " + data.error);
+    }
+  };
+
+  finishBtn.onclick = () => {
+    const total = questions.length;
+    const done = Object.keys(doneQuestions).length;
+    let correct = 0;
+
+    for (let qid in doneQuestions) {
+      if (doneQuestions[qid].includes("✅")) correct++;
     }
 
-    if (!code) {
-      resultBox.innerHTML = "<p class='error'>⚠️ Vui lòng nhập code!</p>";
-      return;
-    }
+    const incorrect = done - correct;
 
-    // 🔒 Không cho nộp lại
-    if (answeredQuestions[question_id]) {
-      resultBox.innerHTML = "<p class='error'>⚠️ Câu hỏi này đã được nộp!</p>";
-      return;
-    }
+    alert(`📊 Kết quả:\n✅ Đúng: ${correct}\n❌ Sai: ${incorrect}\n📌 Chưa làm: ${total - done}`);
 
-    try {
-      const res = await fetch(`${API_BASE}/submit`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify({ question_id, code })
-      });
-
-      const data = await res.json();
-
-      if (res.ok) {
-        const isCorrect = data.result.includes("Chính xác");
-
-        // đánh dấu đã nộp
-        answeredQuestions[question_id] = {
-          result: isCorrect ? "Đúng" : "Sai"
-        };
-
-        if (isCorrect) correctCount++;
-        else wrongCount++;
-
-        const activeItem = document.querySelector(`.question-item[data-id='${question_id}']`);
-        if (activeItem) activeItem.classList.add("done");
-
-        resultBox.innerHTML = "<p>✅ Bài đã được nộp!</p>";
-      } else {
-        resultBox.innerHTML = `<p class='error'>❌ ${data.error || 'Lỗi khi chấm bài'}</p>`;
-      }
-
-    } catch (err) {
-      resultBox.innerHTML = `<p class='error'>🚫 Không thể kết nối máy chủ</p>`;
-      console.error(err);
-    }
-  });
-
-  document.getElementById("doneBtn").addEventListener("click", async () => {
-    resultBox.innerHTML = `
-      <p><strong>📊 Tổng kết:</strong></p>
-      <ul>
-        <li>✅ Số câu đúng: <strong>${correctCount}</strong></li>
-        <li>❌ Số câu sai: <strong>${wrongCount}</strong></li>
-      </ul>
-    `;
-
-    // 📤 Gửi thống kê lên server
-    try {
-      const res = await fetch(`${API_BASE}/summary`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          student_id,
-          correct: correctCount,
-          wrong: wrongCount,
-          submitted_at: new Date()
-        })
-      });
-
-      if (!res.ok) {
-        console.warn("❌ Không lưu được thống kê tổng kết");
-      }
-    } catch (err) {
-      console.error("Lỗi khi gửi thống kê:", err);
-    }
-  });
+    // Gửi tổng kết
+    fetch(`${API_BASE}/summary`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        student_id,
+        correct,
+        incorrect,
+        total,
+        submitted_at: new Date()
+      })
+    });
+  };
 
   loadQuestions();
 </script>
-
 </body>
 </html>
