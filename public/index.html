@@ -25,6 +25,8 @@
       flex: 1;
       padding: 30px;
       background: #f9f9f9;
+      display: flex;
+      flex-direction: column;
     }
     .question-item {
       padding: 12px;
@@ -58,15 +60,23 @@
     button {
       padding: 12px;
       font-size: 16px;
-      background-color: #28a745;
       color: white;
       border: none;
       border-radius: 6px;
       cursor: pointer;
       margin-top: 10px;
     }
-    button:hover {
+    #submitBtn {
+      background-color: #28a745;
+    }
+    #submitBtn:hover {
       background-color: #218838;
+    }
+    #doneBtn {
+      background-color: #007bff;
+    }
+    #doneBtn:hover {
+      background-color: #0056b3;
     }
     .output {
       background: #fff;
@@ -96,7 +106,8 @@
     <label for="codeInput">💻 Nhập mã chương trình:</label>
     <textarea id="codeInput" placeholder="// Viết code tại đây..." onpaste="return false;" oncopy="return false;"></textarea>
 
-    <button id="submitBtn">Chấm bài</button>
+    <button id="submitBtn">📤 Nộp bài</button>
+    <button id="doneBtn">✅ Xong</button>
 
     <div class="output" id="resultBox"></div>
   </div>
@@ -116,8 +127,11 @@
   const codeInput = document.getElementById("codeInput");
   const questionSelect = document.getElementById("questionSelect");
   const resultBox = document.getElementById("resultBox");
+  const doneBtn = document.getElementById("doneBtn");
 
   let questions = [];
+  let correctCount = 0;
+  let wrongCount = 0;
 
   async function loadQuestions() {
     try {
@@ -135,7 +149,6 @@
           document.querySelectorAll(".question-item").forEach(el => el.classList.remove("active"));
           item.classList.add("active");
 
-          // Gán question_id cho ẩn và xóa vùng code
           questionSelect.value = q.question_id;
           codeInput.value = "";
           resultBox.innerHTML = "";
@@ -153,6 +166,8 @@
   document.getElementById("submitBtn").addEventListener("click", async () => {
     const code = codeInput.value.trim();
     const question_id = questionSelect.value;
+    resultBox.innerHTML = "";
+
     if (!code) {
       resultBox.innerHTML = "<p class='error'>⚠️ Vui lòng nhập code!</p>";
       return;
@@ -171,15 +186,18 @@
       const data = await res.json();
 
       if (res.ok) {
-        resultBox.innerHTML = `
-          <p><strong>Kết quả:</strong> ${data.result}</p>
-          <p><strong>Đầu ra thực tế:</strong> <pre>${data.actual_output}</pre></p>
-          <p><strong>Đầu ra mong đợi:</strong> <pre>${data.expected_output}</pre></p>
-        `;
-
         // Đánh dấu là đã làm
         const activeItem = document.querySelector(`.question-item[data-id='${question_id}']`);
         if (activeItem) activeItem.classList.add("done");
+
+        // Lưu thống kê
+        if (data.result.includes("Chính xác")) {
+          correctCount++;
+        } else {
+          wrongCount++;
+        }
+
+        resultBox.innerHTML = "<p>✅ Bài đã được nộp!</p>";
 
       } else {
         resultBox.innerHTML = `<p class='error'>❌ ${data.error || 'Lỗi khi chấm bài'}</p>`;
@@ -189,6 +207,16 @@
       resultBox.innerHTML = `<p class='error'>🚫 Không thể kết nối máy chủ</p>`;
       console.error(err);
     }
+  });
+
+  doneBtn.addEventListener("click", () => {
+    resultBox.innerHTML = `
+      <p><strong>📊 Tổng kết:</strong></p>
+      <ul>
+        <li>✅ Số câu đúng: <strong>${correctCount}</strong></li>
+        <li>❌ Số câu sai: <strong>${wrongCount}</strong></li>
+      </ul>
+    `;
   });
 
   // Bắt đầu
