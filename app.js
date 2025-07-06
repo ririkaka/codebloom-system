@@ -48,14 +48,18 @@ async function main() {
 
   // 👉 API: Đăng nhập giáo viên
   app.post('/teacher-login', async (req, res) => {
-    const { username, password } = req.body;
-    if (username === 'teacher' && password === '123456') {
-      const token = jwt.sign({ username, role: 'teacher' }, JWT_SECRET);
-      return res.json({ token });
-    } else {
-      return res.status(401).json({ error: 'Sai tài khoản hoặc mật khẩu' });
-    }
-  });
+  const { username, password } = req.body;
+  if (!username || !password) return res.status(400).json({ error: 'Thiếu thông tin đăng nhập' });
+
+  const teacher = await db.collection('teachers').findOne({ t_name: username });
+  if (!teacher) return res.status(401).json({ error: 'Sai tên đăng nhập hoặc mật khẩu' });
+
+  const passwordMatch = await bcrypt.compare(password, teacher.t_password);
+  if (!passwordMatch) return res.status(401).json({ error: 'Sai tên đăng nhập hoặc mật khẩu' });
+
+  const token = jwt.sign({ username: teacher.t_name, teacher_id: teacher.teacher_id, role: 'teacher' }, JWT_SECRET);
+  res.json({ token });
+});
 
   // 👉 API: Lấy danh sách câu hỏi
   app.get('/questions', async (req, res) => {
