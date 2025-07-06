@@ -1,246 +1,151 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <title>Làm bài - CodeBloom</title>
   <style>
     body {
       font-family: Arial, sans-serif;
-      margin: 0;
-      background: #f2f2f2;
-    }
-    .container {
-      display: flex;
-      height: 100vh;
-    }
-    .sidebar {
-      width: 30%;
-      background: #ffffff;
-      border-right: 1px solid #ddd;
-      padding: 20px;
-      overflow-y: auto;
-    }
-    .main {
-      width: 70%;
+      background: #f8f9fa;
       padding: 20px;
     }
-    .question-item {
-      padding: 10px;
-      border: 1px solid #ddd;
-      border-radius: 6px;
+    h2 {
       margin-bottom: 10px;
-      cursor: pointer;
     }
-    .question-item.active {
-      background-color: #cce5ff;
-      border-left: 5px solid #007bff;
-    }
-    .question-item.done {
-      background-color: #d4edda;
-      border-left: 5px solid #28a745;
+    .question {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 0 5px rgba(0,0,0,0.1);
+      margin-bottom: 20px;
     }
     textarea {
       width: 100%;
-      height: 300px;
+      height: 150px;
       font-family: monospace;
-      font-size: 15px;
+      font-size: 16px;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      resize: vertical;
     }
     button {
-      padding: 12px 20px;
-      font-size: 16px;
+      padding: 10px 20px;
+      background-color: #007bff;
       border: none;
+      color: white;
+      font-size: 16px;
       border-radius: 6px;
       cursor: pointer;
-      margin-right: 10px;
     }
-    #submitBtn {
-      background-color: #007bff;
-      color: white;
+    button:hover {
+      background-color: #0056b3;
     }
-    #submitBtn:disabled {
-      background-color: #ccc;
-    }
-    #finishBtn {
-      background-color: #28a745;
-      color: white;
-    }
-    .timer {
-      text-align: right;
+    .result {
+      margin-top: 10px;
       font-weight: bold;
-      font-size: 18px;
-      margin-bottom: 10px;
     }
-    #sessionForm {
+    #sessionInfo {
+      font-style: italic;
       margin-bottom: 15px;
     }
   </style>
 </head>
 <body>
 
-<div class="container">
-  <div class="sidebar">
-    <h3>🧠 Danh sách câu hỏi</h3>
-    <form id="sessionForm">
-      <label for="sessionInput">🔐 Nhập mã phiên:</label><br>
-      <input type="text" id="sessionInput" required placeholder="VD: PHIEN_123">
-      <button type="submit">Bắt đầu</button>
-    </form>
-    <div id="questionList"></div>
-  </div>
-
-  <div class="main">
-    <div class="timer">⏳ Còn lại: <span id="timeLeft">30:00</span></div>
-    <h3 id="questionTitle">Chọn một câu hỏi để bắt đầu</h3>
-    <textarea id="codeInput" placeholder="// Viết code tại đây..." disabled></textarea>
-
-    <div style="margin-top: 10px;">
-      <button id="submitBtn" disabled>Nộp bài</button>
-      <button id="finishBtn" disabled>Xong</button>
-    </div>
-
-    <div id="resultBox"></div>
-  </div>
-</div>
+<h2>📘 Làm bài lập trình</h2>
+<p id="sessionInfo">🔄 Đang xác định phiên làm bài...</p>
+<div id="questionContainer"></div>
 
 <script>
   const API_BASE = "https://codebloom-system.onrender.com";
-  const token = localStorage.getItem("token");
-  const student_id = localStorage.getItem("student_id");
-  const startTimeKey = "startTime";
+  const token = localStorage.getItem("student_token");
+  let currentSession = null;
 
-  if (!token || !student_id) {
-    alert("❌ Vui lòng đăng nhập trước!");
+  if (!token) {
+    alert("🔒 Vui lòng đăng nhập.");
     window.location.href = "login.html";
   }
 
-  const sessionForm = document.getElementById("sessionForm");
-  const sessionInput = document.getElementById("sessionInput");
-  let session_id = null;
-  let questions = [];
-  let selectedQuestion = null;
-  const doneQuestions = {};
-  const maxTime = 30 * 60 * 1000;
-  const questionList = document.getElementById("questionList");
-  const codeInput = document.getElementById("codeInput");
-  const submitBtn = document.getElementById("submitBtn");
-  const finishBtn = document.getElementById("finishBtn");
-  const resultBox = document.getElementById("resultBox");
-  const questionTitle = document.getElementById("questionTitle");
-
-  // 🚫 Không cho copy/paste/cut trong vùng soạn code
-  ["copy", "paste", "cut"].forEach(evt => {
-    codeInput.addEventListener(evt, e => {
-      e.preventDefault();
-      alert("🚫 Không được sử dụng thao tác này trong vùng code!");
-    });
-  });
-
-  sessionForm.onsubmit = async (e) => {
-    e.preventDefault();
-    session_id = sessionInput.value.trim();
-    if (!session_id) return alert("⚠️ Bạn cần nhập mã phiên!");
-
-    localStorage.setItem("session_id", session_id);
-    localStorage.setItem(startTimeKey, Date.now());
-    sessionInput.disabled = true;
-    sessionForm.querySelector("button").disabled = true;
-
-    submitBtn.disabled = false;
-    finishBtn.disabled = false;
-
-    await loadQuestions();
-    updateCountdown();
-    setInterval(updateCountdown, 1000);
-  };
-
-  function updateCountdown() {
-    const startTime = parseInt(localStorage.getItem(startTimeKey) || "0");
-    const now = Date.now();
-    const elapsed = now - startTime;
-    const remaining = maxTime - elapsed;
-    const timeBox = document.getElementById("timeLeft");
-
-    if (remaining <= 0) {
-      alert("⏰ Hết giờ!");
-      codeInput.disabled = true;
-      submitBtn.disabled = true;
-      return;
+  async function getNextSession() {
+    try {
+      const res = await fetch(`${API_BASE}/next-session-id`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json();
+      currentSession = data.nextSession;
+      document.getElementById("sessionInfo").textContent = `🆕 Phiên làm bài hiện tại: ${currentSession}`;
+    } catch (err) {
+      alert("❌ Không lấy được phiên làm bài.");
+      console.error(err);
     }
-
-    const minutes = Math.floor(remaining / 60000);
-    const seconds = Math.floor((remaining % 60000) / 1000);
-    timeBox.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
   }
 
   async function loadQuestions() {
-    const res = await fetch(`${API_BASE}/questions`);
-    questions = await res.json();
+    try {
+      const res = await fetch(`${API_BASE}/questions`);
+      const questions = await res.json();
+      renderQuestions(questions);
+      await getNextSession();
+    } catch (err) {
+      alert("❌ Không tải được câu hỏi.");
+      console.error(err);
+    }
+  }
+
+  function renderQuestions(questions) {
+    const container = document.getElementById("questionContainer");
+    container.innerHTML = "";
+
     questions.forEach(q => {
       const div = document.createElement("div");
-      div.className = "question-item";
-      div.textContent = `${q.question_id} - ${q.content}`;
-      div.onclick = () => selectQuestion(q, div);
-      questionList.appendChild(div);
+      div.className = "question";
+      div.innerHTML = `
+        <h3>${q.question_id}: ${q.text}</h3>
+        <textarea id="code-${q.question_id}" 
+                  onpaste="return false" 
+                  oncopy="return false"></textarea>
+        <br><br>
+        <button onclick="submitAnswer('${q.question_id}')">Nộp bài</button>
+        <div class="result" id="result-${q.question_id}"></div>
+      `;
+      container.appendChild(div);
     });
   }
 
-  function selectQuestion(q, element) {
-    if (selectedQuestion?.element) {
-      selectedQuestion.element.classList.remove("active");
+  async function submitAnswer(question_id) {
+    const code = document.getElementById(`code-${question_id}`).value.trim();
+    const resultDiv = document.getElementById(`result-${question_id}`);
+
+    if (!code) {
+      alert("⛔ Vui lòng nhập code.");
+      return;
     }
-    selectedQuestion = { data: q, element };
-    element.classList.add("active");
-    questionTitle.textContent = `🧠 ${q.question_id} - ${q.content}`;
-    codeInput.value = "";
-    codeInput.disabled = !!doneQuestions[q.question_id];
-    submitBtn.disabled = !!doneQuestions[q.question_id];
-    resultBox.innerHTML = "";
+
+    try {
+      const res = await fetch(`${API_BASE}/submit`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          question_id,
+          code,
+          session_id: currentSession
+        })
+      });
+
+      const data = await res.json();
+      resultDiv.textContent = data.result || "❓ Không xác định";
+    } catch (err) {
+      resultDiv.textContent = "❌ Lỗi khi nộp bài.";
+      console.error(err);
+    }
   }
 
-  submitBtn.onclick = async () => {
-    const code = codeInput.value.trim();
-    if (!code || !selectedQuestion) return alert("⚠️ Chưa chọn câu hỏi hoặc chưa nhập code!");
-
-    submitBtn.disabled = true;
-
-    const res = await fetch(`${API_BASE}/submit`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`
-      },
-      body: JSON.stringify({
-        question_id: selectedQuestion.data.question_id,
-        code,
-        session_id
-      })
-    });
-
-    const data = await res.json();
-    if (res.ok) {
-      doneQuestions[selectedQuestion.data.question_id] = data.result;
-      selectedQuestion.element.classList.add("done");
-      alert("📥 Bài đã được nộp!");
-      codeInput.disabled = true;
-    } else {
-      alert("❌ Có lỗi xảy ra: " + data.error);
-      submitBtn.disabled = false;
-    }
-  };
-
-  finishBtn.onclick = () => {
-    const total = questions.length;
-    const done = Object.keys(doneQuestions).length;
-    let correct = 0;
-
-    for (let qid in doneQuestions) {
-      if (doneQuestions[qid].includes("✅")) correct++;
-    }
-
-    const incorrect = done - correct;
-
-    alert(`📊 Kết quả:\n✅ Đúng: ${correct}\n❌ Sai: ${incorrect}\n📌 Chưa làm: ${total - done}`);
-  };
+  loadQuestions();
 </script>
+
 </body>
 </html>
