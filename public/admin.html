@@ -2,7 +2,7 @@
 <html lang="vi">
 <head>
   <meta charset="UTF-8" />
-  <title>📊 Kết quả học sinh - CodeBloom</title>
+  <title>Kết quả học sinh - Phiên gần nhất</title>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -49,9 +49,8 @@
 </head>
 <body>
 
-<h2>✅ Kết quả tổng hợp học sinh</h2>
+<h2>📊 Kết quả học sinh - Phiên làm bài mới nhất</h2>
 <button class="export-btn" onclick="exportToExcel()">📥 Xuất Excel</button>
-
 <table id="resultsTable">
   <thead id="tableHead"></thead>
   <tbody id="tableBody"></tbody>
@@ -68,93 +67,107 @@
 
   async function loadResults() {
     try {
-      const res = await fetch(`${API_BASE}/results`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      const studentsRes = await fetch(`${API_BASE}/students`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const [resultsRes, studentsRes] = await Promise.all([
+        fetch(`${API_BASE}/results`, { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(`${API_BASE}/students`, { headers: { Authorization: `Bearer ${token}` } })
+      ]);
 
-      if (!res.ok || !studentsRes.ok) throw new Error("Lỗi tải dữ liệu");
+      if (!resultsRes.ok || !studentsRes.ok) throw new Error("Lỗi tải dữ liệu");
 
-      const rawResults = await res.json();
+      const allResults = await resultsRes.json();
       const students = await studentsRes.json();
       const studentMap = {};
-      students.forEach(s => studentMap[s.student_id] = s.full_name || "Không rõ");
+      students.forEach(st => studentMap[st.student_id] = st.full_name || "Chưa rõ");
 
-      const summary = buildSummary(rawResults);
-      renderTable(summary, studentMap);
+      // Lọc phiên làm bài mới nhất cho mỗi sinh viên
+      const groupedByStudent = {};
+      for (const r of allResults) {
+        const key = r.student_id;
+        if (!groupedByStudent[key]) groupedByStudent[key] = [];
+        groupedByStudent[key].push(r);
+      }
+
+      const latestResults = [];
+      for (const [student_id, submissions] of Object.entries(groupedByStudent)) {
+        // Lấy session_id mới nhất
+        const latestSession = submissions.reduce((latest, curr) => {
+          return new Date(curr.submittedAt) > new Date(latest.submittedAt) ? curr : latest;
+        });
+
+        const latestSessionId = latestSession.session_id;
+
+        const filtered = submissions.filter(s => s.session_id === latestSessionId);
+        latestResults.push({ student_id, session_id: latestSessionId, answers: filtered });
+      }
+
+      renderTable(latestResults, studentMap);
     } catch (err) {
       alert("❌ Lỗi tải dữ liệu từ server");
       console.error(err);
     }
   }
 
-  function buildSummary(results) {
-    const summaryMap = {};
+  function renderTable(data, studentMap) {
+    const head = document.getElementById("tableHead");
+    const body = document.getElementById("tableBody");
+
     const allQuestions = new Set();
-
-    results.forEach(r => {
-      const sid = r.student_id;
-      if (!summaryMap[sid]) {
-        summaryMap[sid] = {
-          student_id: sid,
-          session_id: r.session_id,
-          answers: {},
-          correctCount: 0,
-          wrongCount: 0
-        };
-      }
-
-      summaryMap[sid].answers[r.question_id] = r.correct;
-      if (r.correct === true) summaryMap[sid].correctCount++;
-      else if (r.correct === false) summaryMap[sid].wrongCount++;
-
-      allQuestions.add(r.question_id);
+    data.forEach(entry => {
+      entry.answers.forEach(ans => allQuestions.add(ans.question_id));
     });
 
-    return {
-      summaryList: Object.values(summaryMap),
-      questionIds: Array.from(allQuestions).sort()
-    };
-  }
+    const sortedQuestions = Array.from(allQuestions).sort();
 
-  function renderTable({ summaryList, questionIds }, studentMap) {
-    const tableHead = document.getElementById("tableHead");
-    const tableBody = document.getElementById("tableBody");
-
-    tableHead.innerHTML = `
+    // Header table
+    head.innerHTML = `
       <tr>
         <th>Mã SV</th>
-        ${questionIds.map(q => `<th>${q}</th>`).join("")}
-        <th>✅ Đúng</th>
-        <th>❌ Sai</th>
+        <th>Họ tên</th>
+        ${sortedQuestions.map(q => `<th>Câu ${q}</th>`).join("")}
+        <th>Đúng</th>
+        <th>Sai</th>
+        <th>Phiên</th>
       </tr>
     `;
 
-    tableBody.innerHTML = "";
-    summaryList.forEach(row => {
-      const tr = document.createElement("tr");
-      tr.innerHTML = `
-        <td>${row.student_id}</td>
-        ${questionIds.map(q => {
-          const val = row.answers[q];
-          return val === true ? `<td class="correct">✅</td>` :
-                 val === false ? `<td class="wrong">❌</td>` : `<td></td>`;
+    // Body table
+    body.innerHTML = "";
+    data.forEach(entry => {
+      const answerMap = {};
+      entry.answers.forEach(ans => {
+        answerMap[ans.question_id] = ans.correct;
+      });
+
+      const correctCount = entry.answers.filter(a => a.correct === true).length;
+      const wrongCount = entry.answers.filter(a => a.correct === false).length;
+
+      const row = document.createElement("tr");
+      row.innerHTML = `
+        <td>${entry.student_id}</td>
+        <td>${studentMap[entry.student_id] || "Không rõ"}</td>
+        ${sortedQuestions.map(q => {
+          const val = answerMap[q];
+          return val === true
+            ? `<td class="correct">✅</td>`
+            : val === false
+              ? `<td class="wrong">❌</td>`
+              : `<td></td>`;
         }).join("")}
-        <td>${row.correctCount}</td>
-        <td>${row.wrongCount}</td>
+        <td>${correctCount}</td>
+        <td>${wrongCount}</td>
+        <td>${entry.session_id}</td>
       `;
-      tableBody.appendChild(tr);
+      body.appendChild(row);
     });
   }
 
   function exportToExcel() {
     const table = document.getElementById("resultsTable");
     const wb = XLSX.utils.table_to_book(table, { sheet: "Kết quả" });
-    XLSX.writeFile(wb, "ket_qua_hoc_sinh.xlsx");
+    XLSX.writeFile(wb, "ket_qua_moi_nhat.xlsx");
   }
 
+  // Load SheetJS for Excel export
   const script = document.createElement("script");
   script.src = "https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js";
   script.onload = loadResults;
