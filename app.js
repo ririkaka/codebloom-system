@@ -1,12 +1,16 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const path = require('path');
 const { MongoClient } = require('mongodb');
 const jwt = require('jsonwebtoken');
 
 const app = express();
 app.use(cors());
 app.use(express.json());
+
+// ⚠️ Phục vụ các file tĩnh như HTML, CSS, JS từ thư mục 'public'
+app.use(express.static(path.join(__dirname, 'public')));
 
 const PORT = process.env.PORT || 3000;
 const mongoUri = process.env.MONGODB_URI;
@@ -15,7 +19,7 @@ let db;
 
 const JWT_SECRET = process.env.JWT_SECRET || 'secret-key';
 
-// 🔐 Xác thực token
+// ✅ Hàm xác thực token sinh viên và giáo viên
 function verifyToken(token) {
   try {
     return jwt.verify(token, JWT_SECRET);
@@ -31,9 +35,9 @@ function verifyTeacherToken(token) {
 
 async function main() {
   await client.connect();
-  db = client.db();
+  db = client.db(); // sử dụng database mặc định
 
-  // 🔐 Đăng nhập sinh viên
+  // 👉 API: Đăng nhập sinh viên
   app.post('/login', async (req, res) => {
     const { student_id } = req.body;
     if (!student_id) return res.status(400).json({ error: 'Thiếu student_id' });
@@ -42,7 +46,7 @@ async function main() {
     res.json({ token });
   });
 
-  // 🔐 Đăng nhập giáo viên
+  // 👉 API: Đăng nhập giáo viên
   app.post('/teacher-login', async (req, res) => {
     const { username, password } = req.body;
     if (username === 'teacher' && password === '123456') {
@@ -53,26 +57,25 @@ async function main() {
     }
   });
 
-  // 📚 Lấy danh sách câu hỏi
+  // 👉 API: Lấy danh sách câu hỏi
   app.get('/questions', async (req, res) => {
     const questions = await db.collection('questions').find().toArray();
     res.json(questions);
   });
 
-  // 📥 Nộp bài - lưu vào "results"
+  // 👉 API: Nộp bài (lưu vào collection "results")
   app.post('/submit', async (req, res) => {
-    const token = req.headers.authorization?.split(" ")[1];
+    const token = req.headers.authorization?.split(' ')[1];
     const decoded = verifyToken(token);
     if (!decoded || decoded.role !== 'student') return res.status(401).json({ error: 'Unauthorized' });
 
     const { question_id, code, session_id } = req.body;
     const student_id = decoded.student_id;
-
     if (!question_id || !code || !session_id) {
       return res.status(400).json({ error: 'Thiếu dữ liệu' });
     }
 
-    // 🔍 Chấm điểm đơn giản: có từ "print" là đúng
+    // 👉 Chấm điểm đơn giản: đúng nếu có từ "print"
     const correct = code.includes("print");
 
     await db.collection('results').insertOne({
@@ -87,48 +90,7 @@ async function main() {
     res.json({ result: correct ? "✅ Đúng" : "❌ Sai" });
   });
 
-  // 📊 Tạo tổng hợp kết quả từ "results"
-  app.get('/result-summary', async (req, res) => {
-    const token = req.headers.authorization?.split(" ")[1];
-    if (!verifyTeacherToken(token)) return res.status(401).json({ error: 'Unauthorized' });
-
-    const results = await db.collection('results').find().toArray();
-
-    const summaryMap = {};
-
-    results.forEach(r => {
-      const sid = r.student_id;
-      if (!summaryMap[sid]) {
-        summaryMap[sid] = {
-          _id: sid,
-          answers: [],
-          correctCount: 0,
-          wrongCount: 0
-        };
-      }
-
-      summaryMap[sid].answers.push({
-        question_id: r.question_id,
-        correct: r.correct
-      });
-
-      if (r.correct) summaryMap[sid].correctCount += 1;
-      else summaryMap[sid].wrongCount += 1;
-    });
-
-    res.json(Object.values(summaryMap));
-  });
-
-  // 🧑‍🎓 Lấy danh sách sinh viên
-  app.get('/students', async (req, res) => {
-    const token = req.headers.authorization?.split(" ")[1];
-    if (!verifyTeacherToken(token)) return res.status(401).json({ error: 'Unauthorized' });
-
-    const students = await db.collection('students').find().toArray();
-    res.json(students);
-  });
-
-  // 📝 Lưu tổng kết từng phiên (tùy chọn)
+  // 👉 API: Lưu tổng kết (không bắt buộc nếu dùng "results")
   app.post('/summary', async (req, res) => {
     const token = req.headers.authorization?.split(" ")[1];
     const decoded = verifyToken(token);
@@ -147,10 +109,56 @@ async function main() {
     res.json({ message: 'Tổng kết đã lưu' });
   });
 
-  // ✅ Start server
+  // 👉 API: Danh sách sinh viên (cho giáo viên)
+  app.get('/students', async (req, res) => {
+    const token = req.headers.authorization?.split(" ")[1];
+    if (!verifyTeacherToken(token)) return res.status(401).json({ error: 'Unauthorized' });
+
+    const students = await db.collection('students').find().toArray();
+    res.json(students);
+  });
+
+  // 👉 API: Kết quả chi tiết đã nộp
+  app.get('/results', async (req, res) => {
+    const token = req.headers.authorization?.split(" ")[1];
+    if (!verifyTeacherToken(token)) return res.status(401).json({ error: 'Unauthorized' });
+
+    const results = await db.collection('results').find().toArray();
+    res.json(results);
+  });
+
+  // 👉 API: Tổng hợp kết quả từ collection "results"
+  app.get('/result-summary', async (req, res) => {
+    const token = req.headers.authorization?.split(" ")[1];
+    if (!verifyTeacherToken(token)) return res.status(401).json({ error: 'Unauthorized' });
+
+    const cursor = await db.collection('results').aggregate([
+      {
+        $group: {
+          _id: "$student_id",
+          answers: {
+            $push: {
+              question_id: "$question_id",
+              correct: "$correct"
+            }
+          },
+          correctCount: { $sum: { $cond: ["$correct", 1, 0] } },
+          wrongCount: { $sum: { $cond: ["$correct", 0, 1] } }
+        }
+      }
+    ]).toArray();
+
+    res.json(cursor);
+  });
+
+  // 👉 Nếu truy cập "/", trả về file role-select.html
+  app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'role-select.html'));
+  });
+
   app.listen(PORT, () => {
     console.log(`✅ Server đang chạy tại http://localhost:${PORT}`);
   });
 }
 
-main();
+main().catch(err => console.error("❌ Lỗi kết nối MongoDB:", err));
