@@ -1,12 +1,16 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const path = require('path');
 const { MongoClient } = require('mongodb');
 const jwt = require('jsonwebtoken');
 
 const app = express();
 app.use(cors());
 app.use(express.json());
+
+// ⚠️ Phục vụ các file tĩnh như HTML, CSS, JS từ thư mục 'public'
+app.use(express.static(path.join(__dirname, 'public')));
 
 const PORT = process.env.PORT || 3000;
 const mongoUri = process.env.MONGODB_URI;
@@ -15,10 +19,10 @@ let db;
 
 const JWT_SECRET = process.env.JWT_SECRET || 'secret-key';
 
+// ✅ Hàm xác thực token sinh viên và giáo viên
 function verifyToken(token) {
   try {
-    const decoded = jwt.verify(token, JWT_SECRET);
-    return decoded;
+    return jwt.verify(token, JWT_SECRET);
   } catch (err) {
     return null;
   }
@@ -31,9 +35,9 @@ function verifyTeacherToken(token) {
 
 async function main() {
   await client.connect();
-  db = client.db(); // default database
+  db = client.db(); // sử dụng database mặc định
 
-  // 👉 Đăng nhập sinh viên
+  // 👉 API: Đăng nhập sinh viên
   app.post('/login', async (req, res) => {
     const { student_id } = req.body;
     if (!student_id) return res.status(400).json({ error: 'Thiếu student_id' });
@@ -42,7 +46,7 @@ async function main() {
     res.json({ token });
   });
 
-  // 👉 Đăng nhập giáo viên
+  // 👉 API: Đăng nhập giáo viên
   app.post('/teacher-login', async (req, res) => {
     const { username, password } = req.body;
     if (username === 'teacher' && password === '123456') {
@@ -53,27 +57,25 @@ async function main() {
     }
   });
 
-  // 👉 Danh sách câu hỏi
+  // 👉 API: Lấy danh sách câu hỏi
   app.get('/questions', async (req, res) => {
     const questions = await db.collection('questions').find().toArray();
     res.json(questions);
   });
 
-  // 👉 Nộp bài (lưu vào collection "results")
+  // 👉 API: Nộp bài (lưu vào collection "results")
   app.post('/submit', async (req, res) => {
-    const auth = req.headers.authorization;
-    const token = auth && auth.split(' ')[1];
+    const token = req.headers.authorization?.split(' ')[1];
     const decoded = verifyToken(token);
     if (!decoded || decoded.role !== 'student') return res.status(401).json({ error: 'Unauthorized' });
 
     const { question_id, code, session_id } = req.body;
     const student_id = decoded.student_id;
-
     if (!question_id || !code || !session_id) {
       return res.status(400).json({ error: 'Thiếu dữ liệu' });
     }
 
-    // Giả lập chấm điểm: nếu code có từ "print" thì đúng
+    // 👉 Chấm điểm đơn giản: đúng nếu có từ "print"
     const correct = code.includes("print");
 
     await db.collection('results').insertOne({
@@ -88,7 +90,7 @@ async function main() {
     res.json({ result: correct ? "✅ Đúng" : "❌ Sai" });
   });
 
-  // 👉 Lưu tổng kết sau khi xong bài (không bắt buộc dùng nếu đã có results từng câu)
+  // 👉 API: Lưu tổng kết (không bắt buộc nếu dùng "results")
   app.post('/summary', async (req, res) => {
     const token = req.headers.authorization?.split(" ")[1];
     const decoded = verifyToken(token);
@@ -107,7 +109,7 @@ async function main() {
     res.json({ message: 'Tổng kết đã lưu' });
   });
 
-  // 👉 API cho giáo viên: danh sách sinh viên
+  // 👉 API: Danh sách sinh viên (cho giáo viên)
   app.get('/students', async (req, res) => {
     const token = req.headers.authorization?.split(" ")[1];
     if (!verifyTeacherToken(token)) return res.status(401).json({ error: 'Unauthorized' });
@@ -116,7 +118,7 @@ async function main() {
     res.json(students);
   });
 
-  // 👉 API cho giáo viên: lấy kết quả đã nộp (collection "results")
+  // 👉 API: Kết quả chi tiết đã nộp
   app.get('/results', async (req, res) => {
     const token = req.headers.authorization?.split(" ")[1];
     if (!verifyTeacherToken(token)) return res.status(401).json({ error: 'Unauthorized' });
@@ -125,7 +127,38 @@ async function main() {
     res.json(results);
   });
 
-  app.listen(PORT, () => console.log(`✅ Server running at http://localhost:${PORT}`));
+  // 👉 API: Tổng hợp kết quả từ collection "results"
+  app.get('/result-summary', async (req, res) => {
+    const token = req.headers.authorization?.split(" ")[1];
+    if (!verifyTeacherToken(token)) return res.status(401).json({ error: 'Unauthorized' });
+
+    const cursor = await db.collection('results').aggregate([
+      {
+        $group: {
+          _id: "$student_id",
+          answers: {
+            $push: {
+              question_id: "$question_id",
+              correct: "$correct"
+            }
+          },
+          correctCount: { $sum: { $cond: ["$correct", 1, 0] } },
+          wrongCount: { $sum: { $cond: ["$correct", 0, 1] } }
+        }
+      }
+    ]).toArray();
+
+    res.json(cursor);
+  });
+
+  // 👉 Nếu truy cập "/", trả về file role-select.html
+  app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'role-select.html'));
+  });
+
+  app.listen(PORT, () => {
+    console.log(`✅ Server đang chạy tại http://localhost:${PORT}`);
+  });
 }
 
-main();
+main().catch(err => console.error("❌ Lỗi kết nối MongoDB:", err));
