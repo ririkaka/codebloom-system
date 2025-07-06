@@ -2,7 +2,7 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const { MongoClient, ObjectId } = require('mongodb');
+const { MongoClient } = require('mongodb');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
 
@@ -11,12 +11,13 @@ const PORT = process.env.PORT || 3000;
 
 app.use(cors());
 app.use(express.json());
+app.use(express.static('public')); // Phục vụ file tĩnh như index.html, role-select.html
 
 const mongoUri = process.env.MONGODB_URI;
 const jwtSecret = process.env.JWT_SECRET;
 const client = new MongoClient(mongoUri);
 
-async function verifyToken(req, res, next) {
+function verifyToken(req, res, next) {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
   if (!token) return res.status(401).json({ error: 'No token provided' });
@@ -37,6 +38,7 @@ client.connect().then(() => {
   const questions = db.collection('questions');
   const submissions = db.collection('submissions');
 
+  // Đăng nhập học sinh
   app.post('/login', async (req, res) => {
     const { student_id, password } = req.body;
     const student = await students.findOne({ student_id });
@@ -49,6 +51,7 @@ client.connect().then(() => {
     res.json({ token });
   });
 
+  // Đăng nhập giáo viên
   app.post('/teacher-login', async (req, res) => {
     const { teacher_id, password } = req.body;
     const teacher = await teachers.findOne({ teacher_id });
@@ -61,11 +64,13 @@ client.connect().then(() => {
     res.json({ token });
   });
 
+  // Lấy danh sách câu hỏi
   app.get('/questions', async (req, res) => {
     const list = await questions.find().toArray();
     res.json(list);
   });
 
+  // Nộp bài
   app.post('/submit', verifyToken, async (req, res) => {
     const { student_id } = req.user;
     const { question_id, code, session_id } = req.body;
@@ -73,12 +78,11 @@ client.connect().then(() => {
     if (!session_id) return res.status(400).json({ error: 'Thiếu mã phiên làm bài' });
 
     const existing = await submissions.findOne({ student_id, question_id, session_id });
-
     if (existing) {
       return res.status(400).json({ error: 'Bạn đã nộp câu này trong phiên này rồi!' });
     }
 
-    // Chấm bài tạm thời: code chứa từ "print" là đúng
+    // Giả lập chấm bài: nếu code có chứa "print" thì là đúng
     const correct = code.includes("print");
 
     await submissions.insertOne({
@@ -90,15 +94,23 @@ client.connect().then(() => {
       submittedAt: new Date()
     });
 
-    res.json({ result: correct ? 'Đúng' : 'Sai', actual_output: '...', expected_output: '...' });
+    res.json({
+      result: correct ? "✅ Chính xác" : "❌ Sai rồi",
+      actual_output: '...',
+      expected_output: '...'
+    });
   });
 
+  // Tổng hợp kết quả cho giáo viên
   app.get('/result-summary', verifyToken, async (req, res) => {
+    const { teacher_id } = req.user;
+    if (!teacher_id) return res.status(403).json({ error: 'Không có quyền truy cập' });
+
     const allSubs = await submissions.aggregate([
       {
         $group: {
           _id: { student_id: "$student_id", question_id: "$question_id" },
-          correct: { $first: "$correct" },
+          correct: { $first: "$correct" }
         }
       },
       {
