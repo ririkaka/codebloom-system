@@ -1,4 +1,3 @@
-// app.js
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
@@ -6,21 +5,21 @@ const { MongoClient } = require('mongodb');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const axios = require('axios');
-const path = require('path');
 
 const app = express();
 app.use(cors());
 app.use(express.json());
-app.use(express.static('public'));
+app.use(express.static('public')); // để phục vụ các file HTML nếu cần
 
 const mongoUri = process.env.MONGODB_URI;
 const client = new MongoClient(mongoUri, { useUnifiedTopology: true });
 let db;
 
+// Kết nối MongoDB
 client.connect()
   .then(() => {
     db = client.db("codebloom");
-    console.log("✅ Đã kết nối MongoDB!");
+    console.log("✅ Đã kết nối MongoDB");
 
     const PORT = process.env.PORT || 3000;
     app.listen(PORT, () => {
@@ -32,7 +31,7 @@ client.connect()
   });
 
 // Middleware kiểm tra JWT sinh viên
-function verifyStudent(req, res, next) {
+function verifyStudentToken(req, res, next) {
   const token = req.headers.authorization?.split(" ")[1];
   if (!token) return res.status(403).json({ error: "Chưa đăng nhập" });
 
@@ -46,22 +45,23 @@ function verifyStudent(req, res, next) {
 }
 
 // Middleware kiểm tra JWT giáo viên
-function verifyTeacher(req, res, next) {
+function verifyTeacherToken(req, res, next) {
   const token = req.headers.authorization?.split(" ")[1];
-  if (!token) return res.status(403).json({ error: "Chưa đăng nhập" });
+  if (!token) return res.status(403).json({ error: "Chưa đăng nhập giáo viên" });
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     req.teacher_id = decoded.teacher_id;
     next();
   } catch (err) {
-    return res.status(401).json({ error: "Token không hợp lệ" });
+    return res.status(401).json({ error: "Token giáo viên không hợp lệ" });
   }
 }
 
-// Đăng nhập sinh viên
+// ========== 1. Đăng nhập sinh viên ==========
 app.post('/login', async (req, res) => {
   const { student_id, password } = req.body;
+
   const student = await db.collection('students').findOne({ student_id });
   if (!student) return res.status(404).json({ error: "Sai mã sinh viên" });
 
@@ -72,20 +72,21 @@ app.post('/login', async (req, res) => {
   res.json({ message: "Đăng nhập thành công!", token });
 });
 
-// Đăng nhập giáo viên
+// ========== 2. Đăng nhập giáo viên ==========
 app.post('/teacher-login', async (req, res) => {
   const { teacher_id, password } = req.body;
+
   const teacher = await db.collection('teachers').findOne({ teacher_id });
   if (!teacher) return res.status(404).json({ error: "Sai mã giáo viên" });
 
-  const isMatch = await bcrypt.compare(password, teacher.password);
+  const isMatch = await bcrypt.compare(password, teacher.t_password);
   if (!isMatch) return res.status(401).json({ error: "Sai mật khẩu" });
 
   const token = jwt.sign({ teacher_id }, process.env.JWT_SECRET, { expiresIn: '2h' });
-  res.json({ message: "Đăng nhập thành công!", token });
+  res.json({ message: "Đăng nhập giáo viên thành công!", token });
 });
 
-// Lấy danh sách câu hỏi
+// ========== 3. Lấy danh sách câu hỏi ==========
 app.get('/questions', async (req, res) => {
   try {
     const questions = await db.collection('questions').find({}).toArray();
@@ -95,20 +96,23 @@ app.get('/questions', async (req, res) => {
   }
 });
 
-// Nộp bài làm (sinh viên)
-app.post('/submit', verifyStudent, async (req, res) => {
+// ========== 4. Chấm bài của sinh viên ==========
+app.post('/submit', verifyStudentToken, async (req, res) => {
   try {
     const { question_id, code } = req.body;
     const student_id = req.student_id;
 
+    // Kiểm tra câu hỏi
     const question = await db.collection('questions').findOne({ question_id });
     if (!question) return res.status(404).json({ error: "Không tìm thấy câu hỏi" });
 
-    const existing = await db.collection('results').findOne({ student_id, question_id });
-    if (existing) return res.status(400).json({ error: "Bạn đã nộp bài cho câu hỏi này" });
+    // Kiểm tra nếu đã nộp bài rồi
+    const existed = await db.collection('results').findOne({ student_id, question_id });
+    if (existed) return res.status(400).json({ error: "Bạn đã nộp câu này rồi!" });
 
+    // Gửi code lên Judge0
     const judge0Res = await axios.post("https://judge0-ce.p.rapidapi.com/submissions?base64_encoded=false&wait=true", {
-      language_id: 71,
+      language_id: 71, // C++ (hoặc 63 cho JavaScript)
       source_code: code,
       stdin: question.test_input
     }, {
@@ -123,6 +127,7 @@ app.post('/submit', verifyStudent, async (req, res) => {
     const expected_output = question.expected_output?.trim();
     const isCorrect = actual_output === expected_output;
 
+    // Lưu kết quả vào MongoDB
     await db.collection('results').insertOne({
       student_id,
       question_id,
@@ -133,7 +138,10 @@ app.post('/submit', verifyStudent, async (req, res) => {
       submitted_at: new Date()
     });
 
-    res.json({ result: "Đã nộp bài!" });
+    // Trả về kết quả nhưng không cho xem chi tiết (ẩn)
+    res.json({
+      result: isCorrect ? "Đã nộp ✅" : "Đã nộp ❌"
+    });
 
   } catch (err) {
     console.error("❌ Lỗi khi chấm bài:", err.response?.data || err.message);
@@ -141,25 +149,35 @@ app.post('/submit', verifyStudent, async (req, res) => {
   }
 });
 
-// Xem bảng kết quả tổng hợp (admin)
-app.get('/admin/results', verifyTeacher, async (req, res) => {
+// ========== 5. Kết quả tổng hợp cho giáo viên ==========
+app.get('/admin-results', verifyTeacherToken, async (req, res) => {
   try {
+    const students = await db.collection('students').find({}).toArray();
+    const questions = await db.collection('questions').find({}).toArray();
     const results = await db.collection('results').find({}).toArray();
-    const allData = {};
 
-    results.forEach(r => {
-      if (!allData[r.student_id]) {
-        allData[r.student_id] = { student_id: r.student_id, correct: 0, incorrect: 0, details: {} };
-      }
-      allData[r.student_id].details[r.question_id] = r.result;
-      if (r.result === "Đúng") allData[r.student_id].correct++;
-      else allData[r.student_id].incorrect++;
+    const table = students.map(student => {
+      const row = {
+        student_id: student.student_id,
+        details: {},
+        correct: 0,
+        wrong: 0
+      };
+
+      questions.forEach(q => {
+        const r = results.find(r => r.student_id === student.student_id && r.question_id === q.question_id);
+        row.details[q.question_id] = r ? r.result : "Chưa làm";
+
+        if (r?.result === "Đúng") row.correct++;
+        else if (r?.result === "Sai") row.wrong++;
+      });
+
+      return row;
     });
 
-    const output = Object.values(allData);
-    res.json(output);
-
+    res.json({ table, questions: questions.map(q => q.question_id) });
   } catch (err) {
-    res.status(500).json({ error: "Lỗi khi lấy kết quả" });
+    console.error("❌ Lỗi lấy kết quả tổng hợp:", err);
+    res.status(500).json({ error: "Không thể lấy kết quả tổng hợp" });
   }
 });
