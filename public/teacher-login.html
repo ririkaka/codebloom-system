@@ -1,108 +1,88 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-  <meta charset="UTF-8">
-  <title>Đăng nhập Giáo viên</title>
+  <meta charset="UTF-8" />
+  <title>Đăng nhập giáo viên - CodeBloom</title>
   <style>
     body {
       font-family: Arial, sans-serif;
-      background: #f2f2f2;
-      padding: 40px;
+      background: #f0f2f5;
       display: flex;
       justify-content: center;
+      align-items: center;
+      height: 100vh;
     }
     .login-box {
       background: white;
       padding: 30px;
-      border-radius: 12px;
+      border-radius: 10px;
       box-shadow: 0 0 10px rgba(0,0,0,0.1);
-      width: 360px;
+      width: 100%;
+      max-width: 400px;
     }
     h2 {
-      text-align: center;
       margin-bottom: 20px;
-    }
-    label, input {
-      display: block;
-      width: 100%;
-      margin-bottom: 15px;
+      text-align: center;
     }
     input {
-      padding: 10px;
-      font-size: 16px;
-      border-radius: 6px;
+      width: 100%;
+      padding: 12px;
+      margin: 10px 0;
       border: 1px solid #ccc;
+      border-radius: 6px;
+      font-size: 16px;
     }
     button {
-      padding: 12px;
       width: 100%;
-      background-color: #007bff;
+      padding: 12px;
+      background-color: #28a745;
       color: white;
-      font-size: 16px;
       border: none;
       border-radius: 6px;
+      font-size: 16px;
       cursor: pointer;
     }
     button:hover {
-      background-color: #0056b3;
-    }
-    .error {
-      color: red;
-      text-align: center;
-      margin-top: 10px;
+      background-color: #218838;
     }
   </style>
 </head>
 <body>
 
-  <div class="login-box">
-    <h2>🔒 Đăng nhập Giáo viên</h2>
-    <form id="loginForm">
-      <label for="teacher_id">Mã giáo viên</label>
-      <input type="text" id="teacher_id" required>
+<div class="login-box">
+  <h2>🔐 Đăng nhập giáo viên</h2>
+  <form id="loginForm">
+    <input type="text" id="username" placeholder="Tên đăng nhập" required />
+    <input type="password" id="password" placeholder="Mật khẩu" required />
+    <button type="submit">Đăng nhập</button>
+  </form>
+</div>
 
-      <label for="password">Mật khẩu</label>
-      <input type="password" id="password" required>
+<script>
+  const API_BASE = "https://codebloom-system.onrender.com";
 
-      <button type="submit">Đăng nhập</button>
-    </form>
+  document.getElementById("loginForm").onsubmit = async function(e) {
+    e.preventDefault();
+    const username = document.getElementById("username").value.trim();
+    const password = document.getElementById("password").value.trim();
 
-    <div class="error" id="errorMsg"></div>
-  </div>
-
-  <script>
-    document.getElementById("loginForm").addEventListener("submit", async function (e) {
-      e.preventDefault();
-
-      const teacher_id = document.getElementById("teacher_id").value;
-      const password = document.getElementById("password").value;
-      const errorBox = document.getElementById("errorMsg");
-
-      try {
-        const res = await fetch("https://codebloom-system.onrender.com/teacher-login", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ teacher_id, password })
-        });
-
-        const data = await res.json();
-
-        if (res.ok) {
-          // ✅ Lưu token và ID giáo viên
-          localStorage.setItem("teacher_token", data.token);
-          localStorage.setItem("teacher_id", teacher_id);
-
-          // 👉 Chuyển đến trang admin
-          window.location.href = "admin.html";
-        } else {
-          errorBox.textContent = "❌ " + (data.error || "Sai thông tin đăng nhập");
-        }
-      } catch (err) {
-        errorBox.textContent = "🚫 Không thể kết nối tới máy chủ";
-        console.error(err);
-      }
+    const res = await fetch(`${API_BASE}/teacher-login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, password })
     });
-  </script>
+
+    const data = await res.json();
+
+    if (res.ok && data.token) {
+      localStorage.setItem("teacher_token", data.token);
+      alert("✅ Đăng nhập thành công!");
+      window.location.href = "admin.html";
+    } else {
+      alert("❌ Sai tài khoản hoặc mật khẩu");
+    }
+  };
+</script>
 
 </body>
 </html>
