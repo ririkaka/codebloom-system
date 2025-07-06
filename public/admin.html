@@ -30,7 +30,7 @@
       border: 1px solid #ddd;
       padding: 8px;
       text-align: center;
-      font-size: 18px;
+      font-size: 16px;
     }
     th {
       background-color: #007bff;
@@ -43,7 +43,7 @@
       content: "❌";
     }
     .notdone::before {
-      content: "";
+      content: "⏸️";
     }
     button {
       padding: 10px 20px;
@@ -62,12 +62,14 @@
 </head>
 <body>
 <div class="container">
-  <h2>✅ Bảng kết quả làm bài</h2>
+  <h2>📊 Bảng kết quả tổng hợp</h2>
   <div id="tableContainer"></div>
   <button onclick="exportExcel()">📥 Xuất Excel</button>
 </div>
 
+<!-- Thư viện xuất Excel -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
 <script>
   const API_BASE = "https://codebloom-system.onrender.com";
   const token = localStorage.getItem("teacher_token");
@@ -90,12 +92,12 @@
       const container = document.getElementById("tableContainer");
       const html = [];
 
-      html.push("<table><thead><tr><th>Mã SV</th>");
+      html.push("<table id='resultTable'><thead><tr><th>Mã SV</th><th>Họ tên</th>");
       questionIds.forEach((qid, i) => html.push(`<th>Câu ${i + 1}</th>`));
       html.push("<th>Tổng đúng</th><th>Tổng sai</th></tr></thead><tbody>");
 
       table.forEach(row => {
-        html.push(`<tr><td>${row.student_id}</td>`);
+        html.push(`<tr><td>${row.student_id}</td><td>${row.name || ''}</td>`);
         questionIds.forEach(qid => {
           const status = row.details[qid];
           const cls =
@@ -116,9 +118,9 @@
   }
 
   function exportExcel() {
-    const table = document.querySelector("table");
-    const wb = XLSX.utils.table_to_book(table, { sheet: "KetQua" });
-    XLSX.writeFile(wb, "ket-qua-lop.xlsx");
+    const table = document.getElementById("resultTable");
+    const wb = XLSX.utils.table_to_book(table, { sheet: "BangKetQua" });
+    XLSX.writeFile(wb, "bang-ket-qua.xlsx");
   }
 
   loadResults();
