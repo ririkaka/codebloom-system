@@ -127,13 +127,13 @@
   const resultBox = document.getElementById("resultBox");
   const questionTitle = document.getElementById("questionTitle");
 
-  // ❌ Ngăn copy/paste trong vùng soạn thảo code
-  ['copy', 'cut', 'paste'].forEach(evt =>
+  // 🚫 Không cho copy/paste/cut trong vùng soạn code
+  ["copy", "paste", "cut"].forEach(evt => {
     codeInput.addEventListener(evt, e => {
       e.preventDefault();
-      alert("⚠️ Không được phép " + evt + " trong vùng soạn code!");
-    })
-  );
+      alert("🚫 Không được sử dụng thao tác này trong vùng code!");
+    });
+  });
 
   sessionForm.onsubmit = async (e) => {
     e.preventDefault();
@@ -203,7 +203,7 @@
 
     submitBtn.disabled = true;
 
-    const res = await fetch(`${API_BASE}/results`, { // 🔁 Đổi endpoint
+    const res = await fetch(`${API_BASE}/submit`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -218,7 +218,7 @@
 
     const data = await res.json();
     if (res.ok) {
-      doneQuestions[selectedQuestion.data.question_id] = data.results;
+      doneQuestions[selectedQuestion.data.question_id] = data.result;
       selectedQuestion.element.classList.add("done");
       alert("📥 Bài đã được nộp!");
       codeInput.disabled = true;
@@ -240,22 +240,6 @@
     const incorrect = done - correct;
 
     alert(`📊 Kết quả:\n✅ Đúng: ${correct}\n❌ Sai: ${incorrect}\n📌 Chưa làm: ${total - done}`);
-
-    fetch(`${API_BASE}/summary`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`
-      },
-      body: JSON.stringify({
-        student_id,
-        correct,
-        incorrect,
-        total,
-        session_id,
-        submitted_at: new Date()
-      })
-    });
   };
 </script>
 </body>
