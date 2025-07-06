@@ -52,8 +52,8 @@
 <div class="login-box">
   <h2>🔐 Đăng nhập giáo viên</h2>
   <form id="loginForm">
-    <input type="text" id="username" placeholder="Tên đăng nhập (t_name)" required />
-    <input type="password" id="password" placeholder="Mật khẩu" required />
+    <input type="text" id="t_name" placeholder="Tên đăng nhập" required />
+    <input type="password" id="t_password" placeholder="Mật khẩu" required />
     <button type="submit">Đăng nhập</button>
   </form>
 </div>
@@ -63,8 +63,8 @@
 
   document.getElementById("loginForm").onsubmit = async function(e) {
     e.preventDefault();
-    const username = document.getElementById("username").value.trim();
-    const password = document.getElementById("password").value.trim();
+    const username = document.getElementById("t_name").value.trim();
+    const password = document.getElementById("t_password").value.trim();
 
     const res = await fetch(`${API_BASE}/teacher-login`, {
       method: "POST",
