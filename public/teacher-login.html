@@ -51,7 +51,7 @@
     <h2>🔐 Đăng nhập Giáo viên</h2>
     <form id="loginForm">
       <input type="text" id="teacher_id" placeholder="Mã giáo viên" required>
-      <input type="password" id="password" placeholder="Mật khẩu" required>
+      <input type="t_password" id="t_password" placeholder="Mật khẩu" required>
       <button type="submit">Đăng nhập</button>
     </form>
     <div class="error" id="errorMsg"></div>
@@ -61,7 +61,7 @@
     document.getElementById("loginForm").addEventListener("submit", async function (e) {
       e.preventDefault();
       const teacher_id = document.getElementById("teacher_id").value;
-      const password = document.getElementById("password").value;
+      const password = document.getElementById("t_password").value;
 
       try {
         const res = await fetch("/teacher-login", {
