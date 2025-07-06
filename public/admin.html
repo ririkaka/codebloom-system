@@ -2,7 +2,7 @@
 <html lang="vi">
 <head>
   <meta charset="UTF-8" />
-  <title>📊 Kết quả học sinh</title>
+  <title>📊 Kết quả học sinh - CodeBloom</title>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -49,14 +49,13 @@
 </head>
 <body>
 
-<h2>✅ Kết quả tổng hợp</h2>
+<h2>✅ Kết quả tổng hợp học sinh</h2>
 <button class="export-btn" onclick="exportToExcel()">📥 Xuất Excel</button>
-<div id="table-container">
-  <table id="resultsTable">
-    <thead id="tableHead"></thead>
-    <tbody id="tableBody"></tbody>
-  </table>
-</div>
+
+<table id="resultsTable">
+  <thead id="tableHead"></thead>
+  <tbody id="tableBody"></tbody>
+</table>
 
 <script>
   const API_BASE = "https://codebloom-system.onrender.com";
@@ -69,77 +68,86 @@
 
   async function loadResults() {
     try {
-      const res = await fetch(`${API_BASE}/result-summary`, {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
+      const res = await fetch(`${API_BASE}/results`, {
+        headers: { Authorization: `Bearer ${token}` }
       });
       const studentsRes = await fetch(`${API_BASE}/students`, {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
+        headers: { Authorization: `Bearer ${token}` }
       });
 
       if (!res.ok || !studentsRes.ok) throw new Error("Lỗi tải dữ liệu");
 
-      const data = await res.json();
+      const rawResults = await res.json();
       const students = await studentsRes.json();
       const studentMap = {};
-      students.forEach(st => studentMap[st.student_id] = st.full_name || "Chưa có tên");
+      students.forEach(s => studentMap[s.student_id] = s.full_name || "Không rõ");
 
-      renderTable(data, studentMap);
+      const summary = buildSummary(rawResults);
+      renderTable(summary, studentMap);
     } catch (err) {
-      alert("❌ Lỗi tải kết quả");
+      alert("❌ Lỗi tải dữ liệu từ server");
       console.error(err);
     }
   }
 
-  function renderTable(data, studentMap) {
-    const head = document.getElementById("tableHead");
-    const body = document.getElementById("tableBody");
-
+  function buildSummary(results) {
+    const summaryMap = {};
     const allQuestions = new Set();
-    data.forEach(entry => {
-      entry.answers.forEach(ans => allQuestions.add(ans.question_id));
+
+    results.forEach(r => {
+      const sid = r.student_id;
+      if (!summaryMap[sid]) {
+        summaryMap[sid] = {
+          student_id: sid,
+          session_id: r.session_id,
+          answers: {},
+          correctCount: 0,
+          wrongCount: 0
+        };
+      }
+
+      summaryMap[sid].answers[r.question_id] = r.correct;
+      if (r.correct === true) summaryMap[sid].correctCount++;
+      else if (r.correct === false) summaryMap[sid].wrongCount++;
+
+      allQuestions.add(r.question_id);
     });
 
-    const sortedQuestions = Array.from(allQuestions).sort();
+    return {
+      summaryList: Object.values(summaryMap),
+      questionIds: Array.from(allQuestions).sort()
+    };
+  }
 
-    // Header table
-    head.innerHTML = `
+  function renderTable({ summaryList, questionIds }, studentMap) {
+    const tableHead = document.getElementById("tableHead");
+    const tableBody = document.getElementById("tableBody");
+
+    tableHead.innerHTML = `
       <tr>
         <th>Mã SV</th>
         <th>Họ tên</th>
-        ${sortedQuestions.map(q => `<th>Câu ${q}</th>`).join("")}
-        <th>Tổng đúng</th>
-        <th>Tổng sai</th>
+        ${questionIds.map(q => `<th>${q}</th>`).join("")}
+        <th>✅ Đúng</th>
+        <th>❌ Sai</th>
       </tr>
     `;
 
-    // Body table
-    body.innerHTML = "";
-    data.forEach(entry => {
-      const answerMap = {};
-      entry.answers.forEach(ans => {
-        answerMap[ans.question_id] = ans.correct;
-      });
-
-      const row = document.createElement("tr");
-      row.innerHTML = `
-        <td>${entry._id}</td>
-        <td>${studentMap[entry._id] || "Không rõ"}</td>
-        ${sortedQuestions.map(q => {
-          const val = answerMap[q];
-          return val === true
-            ? `<td class="correct">✅</td>`
-            : val === false
-              ? `<td class="wrong">❌</td>`
-              : `<td></td>`;
+    tableBody.innerHTML = "";
+    summaryList.forEach(row => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${row.student_id}</td>
+        <td>${studentMap[row.student_id] || "Không rõ"}</td>
+        ${questionIds.map(q => {
+          const val = row.answers[q];
+          return val === true ? `<td class="correct">✅</td>` :
+                 val === false ? `<td class="wrong">❌</td>` : `<td></td>`;
         }).join("")}
-        <td>${entry.correctCount}</td>
-        <td>${entry.wrongCount}</td>
+        <td>${row.correctCount}</td>
+        <td>${row.wrongCount}</td>
       `;
-      body.appendChild(row);
+      tableBody.appendChild(tr);
     });
   }
 
