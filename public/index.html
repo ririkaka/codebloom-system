@@ -127,6 +127,14 @@
   const resultBox = document.getElementById("resultBox");
   const questionTitle = document.getElementById("questionTitle");
 
+  // ❌ Ngăn copy/paste trong vùng soạn thảo code
+  ['copy', 'cut', 'paste'].forEach(evt =>
+    codeInput.addEventListener(evt, e => {
+      e.preventDefault();
+      alert("⚠️ Không được phép " + evt + " trong vùng soạn code!");
+    })
+  );
+
   sessionForm.onsubmit = async (e) => {
     e.preventDefault();
     session_id = sessionInput.value.trim();
@@ -195,7 +203,7 @@
 
     submitBtn.disabled = true;
 
-    const res = await fetch(`${API_BASE}/submit`, {
+    const res = await fetch(`${API_BASE}/results`, { // 🔁 Đổi endpoint
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -210,7 +218,7 @@
 
     const data = await res.json();
     if (res.ok) {
-      doneQuestions[selectedQuestion.data.question_id] = data.result;
+      doneQuestions[selectedQuestion.data.question_id] = data.results;
       selectedQuestion.element.classList.add("done");
       alert("📥 Bài đã được nộp!");
       codeInput.disabled = true;
