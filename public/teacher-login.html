@@ -66,20 +66,24 @@
     const username = document.getElementById("username").value.trim();
     const password = document.getElementById("password").value.trim();
 
-    const res = await fetch(`${API_BASE}/teacher-login`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username, password })
-    });
+    try {
+      const res = await fetch(`${API_BASE}/teacher-login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password })
+      });
 
-    const data = await res.json();
+      const data = await res.json();
 
-    if (res.ok && data.token) {
-      localStorage.setItem("teacher_token", data.token);
-      alert("✅ Đăng nhập thành công!");
-      window.location.href = "admin.html";
-    } else {
-      alert("❌ Sai tài khoản hoặc mật khẩu");
+      if (res.ok && data.token) {
+        localStorage.setItem("teacher_token", data.token);
+        alert("✅ Đăng nhập thành công!");
+        window.location.href = "admin.html";
+      } else {
+        alert("❌ Sai tên đăng nhập hoặc mật khẩu");
+      }
+    } catch (err) {
+      alert("❌ Lỗi kết nối đến server");
     }
   };
 </script>
