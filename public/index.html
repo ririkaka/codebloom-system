@@ -218,7 +218,7 @@
 
     const data = await res.json();
     if (res.ok) {
-      doneQuestions[selectedQuestion.data.question_id] = data.results;
+      doneQuestions[selectedQuestion.data.question_id] = data.result;
       selectedQuestion.element.classList.add("done");
       alert("📥 Bài đã được nộp!");
       codeInput.disabled = true;
