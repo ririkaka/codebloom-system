@@ -126,7 +126,6 @@
     tableHead.innerHTML = `
       <tr>
         <th>Mã SV</th>
-        <th>Họ tên</th>
         ${questionIds.map(q => `<th>${q}</th>`).join("")}
         <th>✅ Đúng</th>
         <th>❌ Sai</th>
@@ -138,7 +137,6 @@
       const tr = document.createElement("tr");
       tr.innerHTML = `
         <td>${row.student_id}</td>
-        <td>${studentMap[row.student_id] || "Không rõ"}</td>
         ${questionIds.map(q => {
           const val = row.answers[q];
           return val === true ? `<td class="correct">✅</td>` :
