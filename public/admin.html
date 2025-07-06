@@ -2,133 +2,93 @@
 <html lang="vi">
 <head>
   <meta charset="UTF-8">
-  <title>📊 Kết quả tổng hợp - CodeBloom</title>
+  <title>Kết quả học sinh - CodeBloom</title>
   <style>
     body {
       font-family: Arial, sans-serif;
       padding: 30px;
-      background-color: #f5f5f5;
+      background: #f9f9f9;
     }
-
-    h2 {
-      text-align: center;
-      margin-bottom: 20px;
-    }
-
     table {
       width: 100%;
       border-collapse: collapse;
       background: white;
-      box-shadow: 0 0 10px rgba(0,0,0,0.1);
     }
-
     th, td {
       padding: 12px;
-      border: 1px solid #ccc;
+      border: 1px solid #ddd;
       text-align: center;
     }
-
     th {
       background-color: #007bff;
       color: white;
-    }
-
-    .correct {
-      background-color: #d4edda;
-    }
-
-    .wrong {
-      background-color: #f8d7da;
-    }
-
-    .none {
-      background-color: #e2e3e5;
-      color: #6c757d;
-    }
-
-    #loadBtn {
-      padding: 10px 20px;
-      margin-bottom: 20px;
-      font-size: 16px;
-      background-color: #28a745;
-      border: none;
-      color: white;
-      cursor: pointer;
-      border-radius: 5px;
-    }
-
-    #loadBtn:hover {
-      background-color: #218838;
     }
   </style>
 </head>
 <body>
 
-<h2>📊 Báo cáo kết quả - Chỉ dành cho giáo viên</h2>
+  <h2>📊 Bảng kết quả học sinh</h2>
+  <table id="resultTable">
+    <thead>
+      <tr id="headerRow">
+        <th>Mã SV</th>
+        <!-- Thêm cột câu hỏi động -->
+        <!-- Cuối cùng -->
+        <th>Số câu đúng</th>
+        <th>Số câu sai</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
 
-<button id="loadBtn">📥 Tải kết quả</button>
+  <script>
+    const API_BASE = "https://codebloom-system.onrender.com";
+    const token = localStorage.getItem("teacher_token");
 
-<div id="tableContainer"></div>
+    if (!token) {
+      alert("Bạn cần đăng nhập trước");
+      window.location.href = "teacher-login.html";
+    }
 
-<script>
-  const API_BASE = "https://codebloom-system.onrender.com";
-  const token = localStorage.getItem("token");
-
-  if (!token) {
-    alert("❌ Bạn chưa đăng nhập!");
-    window.location.href = "login.html";
-  }
-
-  document.getElementById("loadBtn").addEventListener("click", async () => {
-    try {
-      const res = await fetch(`${API_BASE}/admin/summary`, {
+    async function loadResults() {
+      const res = await fetch(`${API_BASE}/admin/results`, {
         headers: {
           Authorization: `Bearer ${token}`
         }
       });
-
       const data = await res.json();
-      const { questions, results } = data;
 
-      const table = document.createElement("table");
-      const thead = document.createElement("thead");
-      const headerRow = document.createElement("tr");
+      const headerRow = document.getElementById("headerRow");
+      const tbody = document.querySelector("tbody");
 
-      headerRow.innerHTML = `<th>Mã SV</th>`;
-      questions.forEach(q => {
-        headerRow.innerHTML += `<th>Câu ${q}</th>`;
+      const allQuestions = [...new Set(data.flatMap(d => Object.keys(d.details)))];
+      allQuestions.sort();
+
+      // Thêm cột động cho từng câu
+      allQuestions.forEach(q => {
+        const th = document.createElement("th");
+        th.textContent = `Câu ${q}`;
+        headerRow.insertBefore(th, headerRow.children[headerRow.children.length - 2]);
       });
-      headerRow.innerHTML += `<th>✅ Đúng</th><th>❌ Sai</th>`;
-      thead.appendChild(headerRow);
-      table.appendChild(thead);
 
-      const tbody = document.createElement("tbody");
+      data.forEach(row => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `<td>${row.student_id}</td>`;
 
-      results.forEach(student => {
-        const row = document.createElement("tr");
-        row.innerHTML = `<td><strong>${student.student_id}</strong></td>`;
-        questions.forEach(qid => {
-          const res = student[qid];
-          let cls = 'none';
-          if (res === "Đúng") cls = "correct";
-          else if (res === "Sai") cls = "wrong";
-          row.innerHTML += `<td class="${cls}">${res || '—'}</td>`;
+        allQuestions.forEach(q => {
+          const result = row.details[q] || "Chưa làm";
+          const td = document.createElement("td");
+          td.textContent = result;
+          td.style.color = result === "Đúng" ? "green" : result === "Sai" ? "red" : "gray";
+          tr.appendChild(td);
         });
-        row.innerHTML += `<td>${student.correct}</td><td>${student.wrong}</td>`;
-        tbody.appendChild(row);
+
+        tr.innerHTML += `<td>${row.correct}</td><td>${row.incorrect}</td>`;
+        tbody.appendChild(tr);
       });
-
-      table.appendChild(tbody);
-      const container = document.getElementById("tableContainer");
-      container.innerHTML = "";
-      container.appendChild(table);
-
-    } catch (err) {
-      console.error(err);
-      alert("❌ Không thể tải báo cáo. Hãy kiểm tra quyền truy cập.");
     }
-  });
-</script>
 
+    loadResults();
+  </script>
 </body>
 </html>
