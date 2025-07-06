@@ -1,129 +1,159 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-  <meta charset="UTF-8">
-  <title>Bảng kết quả - Giáo viên</title>
+  <meta charset="UTF-8" />
+  <title>📊 Kết quả học sinh</title>
   <style>
     body {
       font-family: Arial, sans-serif;
-      background: #f2f2f2;
-      padding: 30px;
-    }
-    .container {
-      max-width: 1100px;
-      margin: auto;
-      background: white;
       padding: 20px;
-      border-radius: 12px;
-      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      background: #f9f9f9;
     }
     h2 {
-      text-align: center;
       margin-bottom: 20px;
     }
     table {
-      width: 100%;
       border-collapse: collapse;
-      margin-top: 10px;
+      width: 100%;
+      background: white;
     }
     th, td {
-      border: 1px solid #ddd;
-      padding: 8px;
+      padding: 10px;
+      border: 1px solid #ccc;
       text-align: center;
-      font-size: 16px;
     }
     th {
-      background-color: #007bff;
-      color: white;
+      background-color: #f0f0f0;
     }
-    .correct::before {
-      content: "✅";
+    .correct {
+      color: green;
+      font-weight: bold;
     }
-    .wrong::before {
-      content: "❌";
+    .wrong {
+      color: red;
+      font-weight: bold;
     }
-    .notdone::before {
-      content: "⏸️";
-    }
-    button {
+    .export-btn {
+      margin-bottom: 15px;
       padding: 10px 20px;
-      background-color: #28a745;
+      background-color: #198754;
       color: white;
       border: none;
-      border-radius: 6px;
-      font-size: 16px;
+      border-radius: 5px;
       cursor: pointer;
-      margin-top: 20px;
     }
-    button:hover {
-      background-color: #218838;
+    .export-btn:hover {
+      background-color: #157347;
     }
   </style>
 </head>
 <body>
-<div class="container">
-  <h2>📊 Bảng kết quả tổng hợp</h2>
-  <div id="tableContainer"></div>
-  <button onclick="exportExcel()">📥 Xuất Excel</button>
-</div>
 
-<!-- Thư viện xuất Excel -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<h2>✅ Kết quả tổng hợp</h2>
+<button class="export-btn" onclick="exportToExcel()">📥 Xuất Excel</button>
+<div id="table-container">
+  <table id="resultsTable">
+    <thead id="tableHead"></thead>
+    <tbody id="tableBody"></tbody>
+  </table>
+</div>
 
 <script>
   const API_BASE = "https://codebloom-system.onrender.com";
   const token = localStorage.getItem("teacher_token");
 
   if (!token) {
-    alert("🔒 Vui lòng đăng nhập giáo viên!");
+    alert("🔒 Vui lòng đăng nhập với tư cách giáo viên.");
     window.location.href = "teacher-login.html";
   }
 
   async function loadResults() {
     try {
-      const res = await fetch(`${API_BASE}/admin-results`, {
-        headers: { Authorization: `Bearer ${token}` }
+      const res = await fetch(`${API_BASE}/result-summary`, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
       });
+      const studentsRes = await fetch(`${API_BASE}/students`, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+
+      if (!res.ok || !studentsRes.ok) throw new Error("Lỗi tải dữ liệu");
 
       const data = await res.json();
-      const table = data.table;
-      const questionIds = data.questions;
+      const students = await studentsRes.json();
+      const studentMap = {};
+      students.forEach(st => studentMap[st.student_id] = st.full_name || "Chưa có tên");
 
-      const container = document.getElementById("tableContainer");
-      const html = [];
-
-      html.push("<table id='resultTable'><thead><tr><th>Mã SV</th><th>Họ tên</th>");
-      questionIds.forEach((qid, i) => html.push(`<th>Câu ${i + 1}</th>`));
-      html.push("<th>Tổng đúng</th><th>Tổng sai</th></tr></thead><tbody>");
-
-      table.forEach(row => {
-        html.push(`<tr><td>${row.student_id}</td><td>${row.name || ''}</td>`);
-        questionIds.forEach(qid => {
-          const status = row.details[qid];
-          const cls =
-            status === "Đúng" ? "correct" :
-            status === "Sai" ? "wrong" : "notdone";
-          html.push(`<td class="${cls}"></td>`);
-        });
-        html.push(`<td>${row.correct}</td><td>${row.wrong}</td></tr>`);
-      });
-
-      html.push("</tbody></table>");
-      container.innerHTML = html.join("");
-
+      renderTable(data, studentMap);
     } catch (err) {
-      console.error(err);
       alert("❌ Lỗi tải kết quả");
+      console.error(err);
     }
   }
 
-  function exportExcel() {
-    const table = document.getElementById("resultTable");
-    const wb = XLSX.utils.table_to_book(table, { sheet: "BangKetQua" });
-    XLSX.writeFile(wb, "bang-ket-qua.xlsx");
+  function renderTable(data, studentMap) {
+    const head = document.getElementById("tableHead");
+    const body = document.getElementById("tableBody");
+
+    const allQuestions = new Set();
+    data.forEach(entry => {
+      entry.answers.forEach(ans => allQuestions.add(ans.question_id));
+    });
+
+    const sortedQuestions = Array.from(allQuestions).sort();
+
+    // Header table
+    head.innerHTML = `
+      <tr>
+        <th>Mã SV</th>
+        <th>Họ tên</th>
+        ${sortedQuestions.map(q => `<th>Câu ${q}</th>`).join("")}
+        <th>Tổng đúng</th>
+        <th>Tổng sai</th>
+      </tr>
+    `;
+
+    // Body table
+    body.innerHTML = "";
+    data.forEach(entry => {
+      const answerMap = {};
+      entry.answers.forEach(ans => {
+        answerMap[ans.question_id] = ans.correct;
+      });
+
+      const row = document.createElement("tr");
+      row.innerHTML = `
+        <td>${entry._id}</td>
+        <td>${studentMap[entry._id] || "Không rõ"}</td>
+        ${sortedQuestions.map(q => {
+          const val = answerMap[q];
+          return val === true
+            ? `<td class="correct">✅</td>`
+            : val === false
+              ? `<td class="wrong">❌</td>`
+              : `<td></td>`;
+        }).join("")}
+        <td>${entry.correctCount}</td>
+        <td>${entry.wrongCount}</td>
+      `;
+      body.appendChild(row);
+    });
   }
 
-  loadResults();
+  function exportToExcel() {
+    const table = document.getElementById("resultsTable");
+    const wb = XLSX.utils.table_to_book(table, { sheet: "Kết quả" });
+    XLSX.writeFile(wb, "ket_qua_hoc_sinh.xlsx");
+  }
+
+  const script = document.createElement("script");
+  script.src = "https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js";
+  script.onload = loadResults;
+  document.head.appendChild(script);
 </script>
+
 </body>
 </html>
