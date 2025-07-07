@@ -4,10 +4,14 @@ const cors = require('cors');
 const { MongoClient } = require('mongodb');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
+const path = require('path');
 
 const app = express();
 app.use(cors());
 app.use(express.json());
+
+// 👉 Phục vụ file HTML/CSS/JS từ thư mục public
+app.use(express.static(path.join(__dirname, 'public')));
 
 const PORT = process.env.PORT || 3000;
 const mongoUri = process.env.MONGODB_URI;
@@ -87,7 +91,7 @@ async function main() {
     res.json({ result: correct ? "✅ Đúng" : "❌ Sai" });
   });
 
-  // ✅ Tổng kết khi học sinh bấm "Xong" (tùy chọn)
+  // ✅ Tổng kết khi học sinh bấm "Xong"
   app.post('/summary', async (req, res) => {
     const token = req.headers.authorization?.split(" ")[1];
     const decoded = verifyToken(token);
@@ -147,6 +151,11 @@ async function main() {
 
     const summary = await db.collection('results').aggregate(pipeline).toArray();
     res.json(summary);
+  });
+
+  // 🔁 Nếu truy cập sai route, trả về file 404.html (nếu có)
+  app.use((req, res) => {
+    res.status(404).sendFile(path.join(__dirname, 'public', '404.html'));
   });
 
   app.listen(PORT, () => {
