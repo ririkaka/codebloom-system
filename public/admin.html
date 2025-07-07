@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="vi">
 <head>
@@ -49,7 +50,7 @@
 </head>
 <body>
 
-<h2>📊 Kết quả học sinh - Phiên làm bài mới nhất</h2>
+<h2>📊 Kết quả học sinh - Phiên làm bài cuối cùng</h2>
 <button class="export-btn" onclick="exportToExcel()">📥 Xuất Excel</button>
 <table id="resultsTable">
   <thead id="tableHead"></thead>
@@ -79,25 +80,25 @@
       const studentMap = {};
       students.forEach(st => studentMap[st.student_id] = st.full_name || "Chưa rõ");
 
-      // Lọc phiên làm bài mới nhất cho mỗi sinh viên
       const groupedByStudent = {};
       for (const r of allResults) {
-        const key = r.student_id;
-        if (!groupedByStudent[key]) groupedByStudent[key] = [];
-        groupedByStudent[key].push(r);
+        if (!groupedByStudent[r.student_id]) groupedByStudent[r.student_id] = [];
+        groupedByStudent[r.student_id].push(r);
       }
 
       const latestResults = [];
       for (const [student_id, submissions] of Object.entries(groupedByStudent)) {
-        // Lấy session_id mới nhất
         const latestSession = submissions.reduce((latest, curr) => {
           return new Date(curr.submittedAt) > new Date(latest.submittedAt) ? curr : latest;
         });
 
         const latestSessionId = latestSession.session_id;
-
         const filtered = submissions.filter(s => s.session_id === latestSessionId);
-        latestResults.push({ student_id, session_id: latestSessionId, answers: filtered });
+
+        const correctCount = filtered.filter(a => a.correct === true).length;
+        const wrongCount = filtered.filter(a => a.correct === false).length;
+
+        latestResults.push({ student_id, session_id: latestSessionId, answers: filtered, correctCount, wrongCount });
       }
 
       renderTable(latestResults, studentMap);
@@ -118,11 +119,10 @@
 
     const sortedQuestions = Array.from(allQuestions).sort();
 
-    // Header table
     head.innerHTML = `
       <tr>
         <th>Mã SV</th>
-        
+       
         ${sortedQuestions.map(q => `<th>Câu ${q}</th>`).join("")}
         <th>Đúng</th>
         <th>Sai</th>
@@ -130,7 +130,6 @@
       </tr>
     `;
 
-    // Body table
     body.innerHTML = "";
     data.forEach(entry => {
       const answerMap = {};
@@ -138,13 +137,10 @@
         answerMap[ans.question_id] = ans.correct;
       });
 
-      const correctCount = entry.answers.filter(a => a.correct === true).length;
-      const wrongCount = entry.answers.filter(a => a.correct === false).length;
-
       const row = document.createElement("tr");
       row.innerHTML = `
         <td>${entry.student_id}</td>
-      
+       
         ${sortedQuestions.map(q => {
           const val = answerMap[q];
           return val === true
@@ -153,8 +149,8 @@
               ? `<td class="wrong">❌</td>`
               : `<td></td>`;
         }).join("")}
-        <td>${correctCount}</td>
-        <td>${wrongCount}</td>
+        <td>${entry.correctCount}</td>
+        <td>${entry.wrongCount}</td>
         <td>${entry.session_id}</td>
       `;
       body.appendChild(row);
@@ -164,10 +160,9 @@
   function exportToExcel() {
     const table = document.getElementById("resultsTable");
     const wb = XLSX.utils.table_to_book(table, { sheet: "Kết quả" });
-    XLSX.writeFile(wb, "ket_qua_moi_nhat.xlsx");
+    XLSX.writeFile(wb, "ket_qua_phien_cuoi.xlsx");
   }
 
-  // Load SheetJS for Excel export
   const script = document.createElement("script");
   script.src = "https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js";
   script.onload = loadResults;
