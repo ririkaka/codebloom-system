@@ -3,7 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const { MongoClient } = require('mongodb');
 const jwt = require('jsonwebtoken');
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
 
 const app = express();
 app.use(cors());
@@ -11,15 +11,15 @@ app.use(express.json());
 
 const PORT = process.env.PORT || 3000;
 const mongoUri = process.env.MONGODB_URI;
+const JWT_SECRET = process.env.JWT_SECRET || 'secret-key';
+
 const client = new MongoClient(mongoUri);
 let db;
-
-const JWT_SECRET = process.env.JWT_SECRET || 'secret-key';
 
 function verifyToken(token) {
   try {
     return jwt.verify(token, JWT_SECRET);
-  } catch {
+  } catch (err) {
     return null;
   }
 }
@@ -33,7 +33,7 @@ async function main() {
   await client.connect();
   db = client.db();
 
-  // 👉 Đăng nhập sinh viên
+  // 🔐 Đăng nhập học sinh
   app.post('/login', async (req, res) => {
     const { student_id } = req.body;
     if (!student_id) return res.status(400).json({ error: 'Thiếu student_id' });
@@ -42,63 +42,38 @@ async function main() {
     res.json({ token });
   });
 
-  // 👉 Đăng nhập giáo viên theo collection "teachers"
+  // 🔐 Đăng nhập giáo viên từ collection "teachers"
   app.post('/teacher-login', async (req, res) => {
-    const { teacher_id, t_password } = req.body;
-    if (!teacher_id || !t_password) return res.status(400).json({ error: 'Thiếu thông tin' });
+    const { username, password } = req.body;
+    const teacher = await db.collection('teachers').findOne({ t_name: username });
 
-    const teacher = await db.collection('teachers').findOne({ teacher_id });
-    if (!teacher) return res.status(401).json({ error: 'Sai tài khoản hoặc mật khẩu' });
+    if (!teacher) return res.status(401).json({ error: 'Sai tên đăng nhập hoặc mật khẩu' });
 
-    const isMatch = await bcrypt.compare(t_password, teacher.t_password);
-    if (!isMatch) return res.status(401).json({ error: 'Sai tài khoản hoặc mật khẩu' });
+    const match = await bcrypt.compare(password, teacher.t_password);
+    if (!match) return res.status(401).json({ error: 'Sai tên đăng nhập hoặc mật khẩu' });
 
-    const token = jwt.sign({ teacher_id, role: 'teacher' }, JWT_SECRET);
+    const token = jwt.sign({ teacher_id: teacher.teacher_id, username, role: 'teacher' }, JWT_SECRET);
     res.json({ token });
   });
 
-  // 👉 Danh sách câu hỏi
+  // 📄 Lấy danh sách câu hỏi
   app.get('/questions', async (req, res) => {
     const questions = await db.collection('questions').find().toArray();
     res.json(questions);
   });
 
-  // 👉 API gợi ý phiên tiếp theo cho sinh viên
-  app.get('/next-session-id', async (req, res) => {
-    const token = req.headers.authorization?.split(" ")[1];
-    const decoded = verifyToken(token);
-    if (!decoded || decoded.role !== 'student') return res.status(401).json({ error: 'Unauthorized' });
-
-    const { student_id } = decoded;
-    const latest = await db.collection('results')
-      .find({ student_id })
-      .sort({ submittedAt: -1 })
-      .limit(1)
-      .toArray();
-
-    let nextSession = "1";
-    if (latest.length > 0 && latest[0].session_id) {
-      const current = parseInt(latest[0].session_id);
-      nextSession = (current + 1).toString();
-    }
-
-    res.json({ nextSession });
-  });
-
-  // 👉 Nộp bài
+  // 📥 Nộp bài của học sinh (lưu vào "results")
   app.post('/submit', async (req, res) => {
-    const token = req.headers.authorization?.split(" ")[1];
+    const token = req.headers.authorization?.split(' ')[1];
     const decoded = verifyToken(token);
     if (!decoded || decoded.role !== 'student') return res.status(401).json({ error: 'Unauthorized' });
 
     const { question_id, code, session_id } = req.body;
     const student_id = decoded.student_id;
 
-    if (!question_id || !code || !session_id) {
-      return res.status(400).json({ error: 'Thiếu dữ liệu' });
-    }
+    if (!question_id || !code || !session_id) return res.status(400).json({ error: 'Thiếu dữ liệu' });
 
-    const correct = code.includes("print");
+    const correct = code.includes("print"); // Giả lập chấm điểm
 
     await db.collection('results').insertOne({
       student_id,
@@ -112,7 +87,7 @@ async function main() {
     res.json({ result: correct ? "✅ Đúng" : "❌ Sai" });
   });
 
-  // 👉 Lưu tổng kết (không bắt buộc)
+  // ✅ Tổng kết khi học sinh bấm "Xong" (tùy chọn)
   app.post('/summary', async (req, res) => {
     const token = req.headers.authorization?.split(" ")[1];
     const decoded = verifyToken(token);
@@ -131,7 +106,7 @@ async function main() {
     res.json({ message: 'Tổng kết đã lưu' });
   });
 
-  // 👉 API giáo viên: lấy danh sách sinh viên
+  // 👩‍🏫 API dành cho giáo viên: danh sách học sinh
   app.get('/students', async (req, res) => {
     const token = req.headers.authorization?.split(" ")[1];
     if (!verifyTeacherToken(token)) return res.status(401).json({ error: 'Unauthorized' });
@@ -140,7 +115,7 @@ async function main() {
     res.json(students);
   });
 
-  // 👉 API giáo viên: lấy kết quả (results)
+  // 👩‍🏫 API dành cho giáo viên: lấy kết quả bài làm (collection "results")
   app.get('/results', async (req, res) => {
     const token = req.headers.authorization?.split(" ")[1];
     if (!verifyTeacherToken(token)) return res.status(401).json({ error: 'Unauthorized' });
@@ -149,7 +124,34 @@ async function main() {
     res.json(results);
   });
 
-  app.listen(PORT, () => console.log(`✅ Server chạy tại http://localhost:${PORT}`));
+  // 👩‍🏫 API tổng hợp kết quả theo học sinh
+  app.get('/result-summary', async (req, res) => {
+    const token = req.headers.authorization?.split(" ")[1];
+    if (!verifyTeacherToken(token)) return res.status(401).json({ error: 'Unauthorized' });
+
+    const pipeline = [
+      {
+        $group: {
+          _id: "$student_id",
+          answers: {
+            $push: {
+              question_id: "$question_id",
+              correct: "$correct"
+            }
+          },
+          correctCount: { $sum: { $cond: ["$correct", 1, 0] } },
+          wrongCount: { $sum: { $cond: ["$correct", 0, 1] } }
+        }
+      }
+    ];
+
+    const summary = await db.collection('results').aggregate(pipeline).toArray();
+    res.json(summary);
+  });
+
+  app.listen(PORT, () => {
+    console.log(`✅ Server running at http://localhost:${PORT}`);
+  });
 }
 
 main();
