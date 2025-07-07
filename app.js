@@ -4,19 +4,10 @@ const cors = require('cors');
 const { MongoClient } = require('mongodb');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
-const path = require('path');
 
 const app = express();
 app.use(cors());
 app.use(express.json());
-
-// 📂 Phục vụ file tĩnh từ thư mục public (fix lỗi Cannot GET /role-select.html)
-app.use(express.static(path.join(__dirname, 'public')));
-
-// 🌐 Redirect / về role-select.html
-app.get('/', (req, res) => {
-  res.redirect('/role-select.html');
-});
 
 const PORT = process.env.PORT || 3000;
 const mongoUri = process.env.MONGODB_URI;
@@ -51,7 +42,7 @@ async function main() {
     res.json({ token });
   });
 
-  // 🔐 Đăng nhập giáo viên (dùng collection "teachers")
+  // 🔐 Đăng nhập giáo viên từ collection "teachers"
   app.post('/teacher-login', async (req, res) => {
     const { username, password } = req.body;
     const teacher = await db.collection('teachers').findOne({ t_name: username });
@@ -65,15 +56,15 @@ async function main() {
     res.json({ token });
   });
 
-  // 📄 Danh sách câu hỏi
+  // 📄 Lấy danh sách câu hỏi
   app.get('/questions', async (req, res) => {
     const questions = await db.collection('questions').find().toArray();
     res.json(questions);
   });
 
-  // 📥 Nộp bài làm
+  // 📥 Nộp bài của học sinh (lưu vào "results")
   app.post('/submit', async (req, res) => {
-    const token = req.headers.authorization?.split(" ")[1];
+    const token = req.headers.authorization?.split(' ')[1];
     const decoded = verifyToken(token);
     if (!decoded || decoded.role !== 'student') return res.status(401).json({ error: 'Unauthorized' });
 
@@ -82,7 +73,7 @@ async function main() {
 
     if (!question_id || !code || !session_id) return res.status(400).json({ error: 'Thiếu dữ liệu' });
 
-    const correct = code.includes("print"); // giả lập chấm bài
+    const correct = code.includes("print"); // Giả lập chấm điểm
 
     await db.collection('results').insertOne({
       student_id,
@@ -96,7 +87,7 @@ async function main() {
     res.json({ result: correct ? "✅ Đúng" : "❌ Sai" });
   });
 
-  // ✅ Tổng kết sau khi học sinh bấm "Xong" (không bắt buộc nếu đã lưu từng câu)
+  // ✅ Tổng kết khi học sinh bấm "Xong" (tùy chọn)
   app.post('/summary', async (req, res) => {
     const token = req.headers.authorization?.split(" ")[1];
     const decoded = verifyToken(token);
@@ -115,7 +106,7 @@ async function main() {
     res.json({ message: 'Tổng kết đã lưu' });
   });
 
-  // 👩‍🏫 API: danh sách học sinh
+  // 👩‍🏫 API dành cho giáo viên: danh sách học sinh
   app.get('/students', async (req, res) => {
     const token = req.headers.authorization?.split(" ")[1];
     if (!verifyTeacherToken(token)) return res.status(401).json({ error: 'Unauthorized' });
@@ -124,7 +115,7 @@ async function main() {
     res.json(students);
   });
 
-  // 👩‍🏫 API: danh sách kết quả nộp bài
+  // 👩‍🏫 API dành cho giáo viên: lấy kết quả bài làm (collection "results")
   app.get('/results', async (req, res) => {
     const token = req.headers.authorization?.split(" ")[1];
     if (!verifyTeacherToken(token)) return res.status(401).json({ error: 'Unauthorized' });
@@ -133,40 +124,23 @@ async function main() {
     res.json(results);
   });
 
-  // 👩‍🏫 API: tổng hợp kết quả bài làm
+  // 👩‍🏫 API tổng hợp kết quả theo học sinh
   app.get('/result-summary', async (req, res) => {
     const token = req.headers.authorization?.split(" ")[1];
     if (!verifyTeacherToken(token)) return res.status(401).json({ error: 'Unauthorized' });
 
     const pipeline = [
       {
-        $sort: { submittedAt: -1 }
-      },
-      {
         $group: {
-          _id: { student_id: "$student_id", question_id: "$question_id" },
-          doc: { $first: "$$ROOT" }
-        }
-      },
-      {
-        $group: {
-          _id: "$_id.student_id",
+          _id: "$student_id",
           answers: {
             $push: {
-              question_id: "$_id.question_id",
-              correct: "$doc.correct"
+              question_id: "$question_id",
+              correct: "$correct"
             }
           },
-          correctCount: {
-            $sum: {
-              $cond: [{ $eq: ["$doc.correct", true] }, 1, 0]
-            }
-          },
-          wrongCount: {
-            $sum: {
-              $cond: [{ $eq: ["$doc.correct", false] }, 1, 0]
-            }
-          }
+          correctCount: { $sum: { $cond: ["$correct", 1, 0] } },
+          wrongCount: { $sum: { $cond: ["$correct", 0, 1] } }
         }
       }
     ];
