@@ -53,7 +53,7 @@
   <h2>🔐 Đăng nhập giáo viên</h2>
   <form id="loginForm">
     <input type="text" id="teacher_id" placeholder="Mã giáo viên" required />
-    <input type="password" id="password" placeholder="Mật khẩu" required />
+    <input type="password" id="t_password" placeholder="Mật khẩu" required />
     <button type="submit">Đăng nhập</button>
   </form>
 </div>
@@ -64,14 +64,14 @@
   document.getElementById("loginForm").onsubmit = async function(e) {
     e.preventDefault();
 
-    const teacher_id = document.getElementById("teacher_id").value.trim();
-    const password = document.getElementById("password").value.trim();
+    const username = document.getElementById("username").value.trim();
+    const password = document.getElementById("t_password").value.trim();
 
     try {
       const res = await fetch(`${API_BASE}/teacher-login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ teacher_id, password })
+        body: JSON.stringify({ teacher_id, t_password }) 
       });
 
       const data = await res.json();
@@ -81,7 +81,7 @@
         alert("✅ Đăng nhập thành công!");
         window.location.href = "admin.html";
       } else {
-        alert("❌ Sai mã giáo viên hoặc mật khẩu");
+        alert("❌ Sai tên đăng nhập hoặc mật khẩu");
       }
     } catch (err) {
       alert("❌ Không thể kết nối đến server");
