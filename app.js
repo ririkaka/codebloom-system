@@ -1,78 +1,56 @@
+
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const path = require('path');
 const { MongoClient } = require('mongodb');
-const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const bcrypt = require('bcryptjs');
+const path = require('path');
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-// ✅ Serve file tĩnh trong thư mục "public" (chứa teacher-login.html)
+const client = new MongoClient(process.env.MONGODB_URI);
+let db;
+client.connect().then(() => {
+  db = client.db();
+  console.log("✅ Kết nối MongoDB thành công");
+});
+
 app.use(express.static(path.join(__dirname, 'public')));
 
-// ✅ Kết nối MongoDB Atlas
-const client = new MongoClient(process.env.MONGODB_URI);
-let teachersCollection;
-
-client.connect().then(async () => {
-  const db = client.db('codebloom');
-  teachersCollection = db.collection('teachers');
-  console.log('✅ Kết nối thành công đến MongoDB');
-
-  // 🧾 Kiểm tra dữ liệu giáo viên
-  const list = await teachersCollection.find({}).toArray();
-  console.log('📋 Danh sách giáo viên:', list);
-}).catch(err => {
-  console.error('❌ Không thể kết nối MongoDB:', err.message);
+app.get('/api/ping', (req, res) => {
+  res.send('pong');
 });
 
-// ✅ API đăng nhập giáo viên
-app.post('/api/teacher-login', async (req, res) => {
+function verifyToken(req, res, next) {
+  const bearerHeader = req.headers['authorization'];
+  if (!bearerHeader) return res.status(403).json({ message: 'Thiếu token' });
+  const token = bearerHeader.split(' ')[1];
+  jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
+    if (err) return res.status(401).json({ message: 'Token không hợp lệ' });
+    req.teacher = decoded;
+    next();
+  });
+}
+
+app.post('/teacher-login', async (req, res) => {
   const { teacher_id, t_password } = req.body;
-
-  if (!teacher_id || !t_password) {
-    return res.status(400).json({ message: 'Vui lòng nhập đầy đủ thông tin' });
-  }
-
   try {
-    const teacher = await teachersCollection.findOne({ teacher_id });
-
-    if (!teacher) {
-      return res.status(401).json({ message: 'Sai mã giáo viên hoặc mật khẩu' });
-    }
-
-    const isMatch = await bcrypt.compare(t_password, teacher.t_password);
-
-    if (!isMatch) {
-      return res.status(401).json({ message: 'Sai mã giáo viên hoặc mật khẩu' });
-    }
-
-    // ✅ Tạo JWT token
-    const token = jwt.sign(
-      {
-        teacher_id: teacher.teacher_id,
-        t_name: teacher.t_name
-      },
-      process.env.JWT_SECRET || 'default_secret_key',
-      { expiresIn: '1h' }
-    );
-
-    return res.json({ message: 'Đăng nhập thành công', token });
+    const teacher = await db.collection('teachers').findOne({ teacher_id });
+    if (!teacher) return res.status(401).json({ message: 'Sai mã giáo viên' });
+    const valid = await bcrypt.compare(t_password, teacher.t_password);
+    if (!valid) return res.status(401).json({ message: 'Sai mật khẩu' });
+    const token = jwt.sign({ teacher_id: teacher.teacher_id }, process.env.JWT_SECRET, { expiresIn: '6h' });
+    res.json({ token });
   } catch (err) {
-    console.error('❌ Lỗi server khi đăng nhập:', err);
-    return res.status(500).json({ message: 'Lỗi máy chủ, vui lòng thử lại' });
+    console.error(err);
+    res.status(500).json({ message: 'Lỗi máy chủ' });
   }
 });
-
-// ✅ Bảo vệ truy cập admin.html (nếu muốn dùng middleware sau này)
-// app.get('/admin.html', verifyToken, (req, res) => {
-//   res.sendFile(path.join(__dirname, 'public', 'admin.html'));
-// });
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`🚀 Server đang chạy tại http://localhost:${PORT}`);
+  console.log("🚀 Server đang chạy tại http://localhost:" + PORT);
 });

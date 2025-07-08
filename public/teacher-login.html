@@ -1,119 +1,49 @@
+
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8">
   <title>Đăng nhập Giáo viên</title>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #f0f2f5;
-      padding: 50px;
-      display: flex;
-      justify-content: center;
-    }
-
-    .login-container {
-      background: #fff;
-      padding: 30px;
-      border-radius: 10px;
-      box-shadow: 0 0 15px rgba(0,0,0,0.1);
-      width: 350px;
-    }
-
-    h2 {
-      text-align: center;
-      margin-bottom: 20px;
-    }
-
-    input[type="text"], input[type="password"] {
-      width: 100%;
-      padding: 10px;
-      margin-top: 8px;
-      margin-bottom: 15px;
-      border: 1px solid #ccc;
-      border-radius: 6px;
-      box-sizing: border-box;
-    }
-
-    button {
-      width: 100%;
-      padding: 10px;
-      background-color: #4CAF50;
-      color: white;
-      border: none;
-      border-radius: 6px;
-      cursor: pointer;
-      font-size: 16px;
-    }
-
-    button:hover {
-      background-color: #45a049;
-    }
-
-    .error {
-      color: red;
-      margin-top: 10px;
-      text-align: center;
-    }
-
-    .success {
-      color: green;
-      margin-top: 10px;
-      text-align: center;
-    }
+    body { font-family: Arial; background: #f1f3f5; display: flex; justify-content: center; align-items: center; height: 100vh; }
+    .box { background: white; padding: 30px; border-radius: 10px; box-shadow: 0 0 10px rgba(0,0,0,0.1); width: 300px; }
+    input, button { width: 100%; margin-top: 10px; padding: 10px; font-size: 16px; }
+    button { background: #28a745; color: white; border: none; cursor: pointer; }
+    button:hover { background: #218838; }
+    .error { color: red; margin-top: 10px; text-align: center; }
   </style>
 </head>
 <body>
-
-  <div class="login-container">
-    <h2>Đăng nhập Giáo viên</h2>
-    <form id="loginForm">
-      <label for="teacher_id">Mã giáo viên</label>
-      <input type="text" id="teacher_id" required placeholder="Nhập mã giáo viên">
-
-      <label for="t_password">Mật khẩu</label>
-      <input type="password" id="t_password" required placeholder="Nhập mật khẩu">
-
-      <button type="submit">Đăng nhập</button>
-    </form>
-
-    <div class="error" id="errorMessage"></div>
-    <div class="success" id="successMessage"></div>
+  <div class="box">
+    <h2>Đăng nhập</h2>
+    <input type="text" id="teacher_id" placeholder="Mã giáo viên" />
+    <input type="password" id="t_password" placeholder="Mật khẩu" />
+    <button onclick="login()">Đăng nhập</button>
+    <div id="error" class="error"></div>
   </div>
-
   <script>
-    document.getElementById('loginForm').addEventListener('submit', async function (e) {
-      e.preventDefault();
-
-      const teacher_id = document.getElementById('teacher_id').value;
-      const t_password = document.getElementById('t_password').value;
-
+    const API_BASE = "https://codebloom-system.onrender.com";
+    async function login() {
+      const teacher_id = document.getElementById("teacher_id").value;
+      const t_password = document.getElementById("t_password").value;
+      const error = document.getElementById("error");
+      error.textContent = "";
       try {
-        const response = await fetch('http://localhost:3000/api/teacher-login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+        const res = await fetch(API_BASE + "/teacher-login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ teacher_id, t_password })
         });
-
-        const data = await response.json();
-
-        if (response.ok) {
-          document.getElementById('errorMessage').textContent = '';
-          document.getElementById('successMessage').textContent = '✅ ' + data.message;
-          localStorage.setItem('token', data.token);
-          setTimeout(() => {
-            window.location.href = 'admin.html';
-          }, 1000);
-        } else {
-          document.getElementById('successMessage').textContent = '';
-          document.getElementById('errorMessage').textContent = data.message;
-        }
-      } catch (err) {
-        document.getElementById('successMessage').textContent = '';
-        document.getElementById('errorMessage').textContent = 'Lỗi kết nối máy chủ';
+        const data = await res.json();
+        if (!res.ok) return error.textContent = data.message || "Lỗi đăng nhập";
+        localStorage.setItem("token", data.token);
+        window.location.href = "admin.html";
+      } catch (e) {
+        error.textContent = "Không kết nối được máy chủ";
+        console.error(e);
       }
-    });
+    }
+    fetch(API_BASE + "/api/ping").catch(() => {});
   </script>
-
 </body>
 </html>

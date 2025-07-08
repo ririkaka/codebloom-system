@@ -57,8 +57,8 @@
 </table>
 
 <script>
-  const API_BASE = "http://localhost:3000"; // 🔁 Gọi từ server cục bộ
-  const token = localStorage.getItem("token"); // ✅ lấy từ login
+  const API_BASE = "https://codebloom-system.onrender.com";
+  const token = localStorage.getItem("token");
 
   if (!token) {
     alert("🔒 Vui lòng đăng nhập với tư cách giáo viên.");
@@ -68,39 +68,52 @@
   async function loadResults() {
     try {
       const [resultsRes, studentsRes] = await Promise.all([
-        fetch(`${API_BASE}/results`, { headers: { Authorization: `Bearer ${token}` } }),
-        fetch(`${API_BASE}/students`, { headers: { Authorization: `Bearer ${token}` } })
+        fetch(`${API_BASE}/results`, {
+          headers: { Authorization: `Bearer ${token}` }
+        }),
+        fetch(`${API_BASE}/students`, {
+          headers: { Authorization: `Bearer ${token}` }
+        })
       ]);
 
       if (!resultsRes.ok || !studentsRes.ok) throw new Error("Lỗi tải dữ liệu");
 
       const allResults = await resultsRes.json();
       const students = await studentsRes.json();
-      const studentMap = {};
-      students.forEach(st => studentMap[st.student_id] = st.full_name || "Chưa rõ");
 
-      const groupedByStudent = {};
-      for (const r of allResults) {
-        if (!groupedByStudent[r.student_id]) groupedByStudent[r.student_id] = [];
-        groupedByStudent[r.student_id].push(r);
+      const studentMap = {};
+      students.forEach(st => {
+        studentMap[st.student_id] = st.full_name || st.student_id;
+      });
+
+      const grouped = {};
+      for (const result of allResults) {
+        if (!grouped[result.student_id]) grouped[result.student_id] = [];
+        grouped[result.student_id].push(result);
       }
 
-      const latestResults = [];
-      for (const [student_id, submissions] of Object.entries(groupedByStudent)) {
-        const latestSession = submissions.reduce((latest, curr) => {
-          return new Date(curr.submittedAt) > new Date(latest.submittedAt) ? curr : latest;
-        });
+      const finalResults = [];
 
+      for (const [student_id, list] of Object.entries(grouped)) {
+        const latestSession = list.reduce((a, b) =>
+          new Date(a.submittedAt) > new Date(b.submittedAt) ? a : b
+        );
         const latestSessionId = latestSession.session_id;
-        const filtered = submissions.filter(s => s.session_id === latestSessionId);
+        const filtered = list.filter(item => item.session_id === latestSessionId);
 
         const correctCount = filtered.filter(a => a.correct === true).length;
         const wrongCount = filtered.filter(a => a.correct === false).length;
 
-        latestResults.push({ student_id, session_id: latestSessionId, answers: filtered, correctCount, wrongCount });
+        finalResults.push({
+          student_id,
+          session_id: latestSessionId,
+          answers: filtered,
+          correctCount,
+          wrongCount
+        });
       }
 
-      renderTable(latestResults, studentMap);
+      renderTable(finalResults, studentMap);
     } catch (err) {
       alert("❌ Lỗi tải dữ liệu từ server");
       console.error(err);
@@ -115,37 +128,30 @@
     data.forEach(entry => {
       entry.answers.forEach(ans => allQuestions.add(ans.question_id));
     });
-
     const sortedQuestions = Array.from(allQuestions).sort();
 
     head.innerHTML = `
       <tr>
         <th>Mã SV</th>
         ${sortedQuestions.map(q => `<th>Câu ${q}</th>`).join("")}
-        <th>Đúng</th>
-        <th>Sai</th>
+        <th>✅ Đúng</th>
+        <th>❌ Sai</th>
         <th>Phiên</th>
       </tr>
     `;
 
     body.innerHTML = "";
     data.forEach(entry => {
-      const answerMap = {};
-      entry.answers.forEach(ans => {
-        answerMap[ans.question_id] = ans.correct;
-      });
+      const map = {};
+      entry.answers.forEach(ans => map[ans.question_id] = ans.correct);
 
       const row = document.createElement("tr");
       row.innerHTML = `
         <td>${entry.student_id}</td>
-        ${sortedQuestions.map(q => {
-          const val = answerMap[q];
-          return val === true
-            ? `<td class="correct">✅</td>`
-            : val === false
-              ? `<td class="wrong">❌</td>`
-              : `<td></td>`;
-        }).join("")}
+        ${sortedQuestions.map(q =>
+          map[q] === true ? `<td class="correct">✅</td>` :
+          map[q] === false ? `<td class="wrong">❌</td>` : `<td></td>`
+        ).join("")}
         <td>${entry.correctCount}</td>
         <td>${entry.wrongCount}</td>
         <td>${entry.session_id}</td>
