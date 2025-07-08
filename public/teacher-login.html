@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="vi">
 <head>
@@ -71,7 +72,7 @@
       const res = await fetch(`${API_BASE}/teacher-login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ teacher_id, password }) // 👈 gửi teacher_id thay vì t_name
+        body: JSON.stringify({ teacher_id, password })
       });
 
       const data = await res.json();
