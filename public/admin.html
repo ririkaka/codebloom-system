@@ -1,56 +1,31 @@
+
 <!DOCTYPE html>
 <html lang="vi">
 <head>
   <meta charset="UTF-8" />
-  <title>Kết quả học sinh - Phiên làm bài cuối cùng</title>
+  <title>Kết quả học sinh - Phiên làm bài cuối</title>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      padding: 20px;
-      background: #f9f9f9;
-    }
-    h2 {
-      margin-bottom: 20px;
-    }
-    table {
-      border-collapse: collapse;
-      width: 100%;
-      background: white;
-    }
-    th, td {
-      padding: 10px;
-      border: 1px solid #ccc;
-      text-align: center;
-    }
-    th {
-      background-color: #f0f0f0;
-    }
-    .correct {
-      color: green;
-      font-weight: bold;
-    }
-    .wrong {
-      color: red;
-      font-weight: bold;
-    }
+    body { font-family: Arial; padding: 20px; background: #f0f0f0; }
+    h2 { margin-bottom: 20px; }
+    table { border-collapse: collapse; width: 100%; background: #fff; }
+    th, td { padding: 10px; border: 1px solid #ccc; text-align: center; }
+    th { background: #e9ecef; }
+    .correct { color: green; font-weight: bold; }
+    .wrong { color: red; font-weight: bold; }
+    .error { color: red; margin-top: 15px; font-weight: bold; }
     .export-btn {
-      margin-bottom: 15px;
-      padding: 10px 20px;
-      background-color: #198754;
-      color: white;
-      border: none;
-      border-radius: 5px;
-      cursor: pointer;
+      margin-bottom: 15px; padding: 10px 20px;
+      background: #198754; color: white; border: none;
+      border-radius: 5px; cursor: pointer;
     }
-    .export-btn:hover {
-      background-color: #157347;
-    }
+    .export-btn:hover { background: #157347; }
   </style>
 </head>
 <body>
 
 <h2>📊 Kết quả học sinh - Phiên làm bài cuối cùng</h2>
 <button class="export-btn" onclick="exportToExcel()">📥 Xuất Excel</button>
+<div id="errorBox" class="error"></div>
 <table id="resultsTable">
   <thead id="tableHead"></thead>
   <tbody id="tableBody"></tbody>
@@ -58,65 +33,50 @@
 
 <script>
   const API_BASE = "https://codebloom-system.onrender.com";
-  const token = localStorage.getItem("token");
+  const token = localStorage.getItem("teacher_token");
 
   if (!token) {
-    alert("🔒 Vui lòng đăng nhập với tư cách giáo viên.");
+    alert("🔒 Vui lòng đăng nhập trước.");
     window.location.href = "teacher-login.html";
   }
 
   async function loadResults() {
     try {
       const [resultsRes, studentsRes] = await Promise.all([
-        fetch(`${API_BASE}/results`, {
-          headers: { Authorization: `Bearer ${token}` }
-        }),
-        fetch(`${API_BASE}/students`, {
-          headers: { Authorization: `Bearer ${token}` }
-        })
+        fetch(`${API_BASE}/results`, { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(`${API_BASE}/students`, { headers: { Authorization: `Bearer ${token}` } })
       ]);
 
-      if (!resultsRes.ok || !studentsRes.ok) throw new Error("Lỗi tải dữ liệu");
+      if (!resultsRes.ok) throw new Error("Lỗi tải dữ liệu kết quả: " + resultsRes.status);
+      if (!studentsRes.ok) throw new Error("Lỗi tải danh sách học sinh: " + studentsRes.status);
 
       const allResults = await resultsRes.json();
       const students = await studentsRes.json();
-
       const studentMap = {};
-      students.forEach(st => {
-        studentMap[st.student_id] = st.full_name || st.student_id;
-      });
+      students.forEach(st => studentMap[st.student_id] = st.full_name || "Không rõ");
 
       const grouped = {};
-      for (const result of allResults) {
-        if (!grouped[result.student_id]) grouped[result.student_id] = [];
-        grouped[result.student_id].push(result);
-      }
+      allResults.forEach(r => {
+        if (!grouped[r.student_id]) grouped[r.student_id] = [];
+        grouped[r.student_id].push(r);
+      });
 
-      const finalResults = [];
-
-      for (const [student_id, list] of Object.entries(grouped)) {
-        const latestSession = list.reduce((a, b) =>
+      const latestResults = [];
+      for (const [student_id, attempts] of Object.entries(grouped)) {
+        const latestSession = attempts.reduce((a, b) =>
           new Date(a.submittedAt) > new Date(b.submittedAt) ? a : b
         );
-        const latestSessionId = latestSession.session_id;
-        const filtered = list.filter(item => item.session_id === latestSessionId);
-
-        const correctCount = filtered.filter(a => a.correct === true).length;
-        const wrongCount = filtered.filter(a => a.correct === false).length;
-
-        finalResults.push({
-          student_id,
-          session_id: latestSessionId,
-          answers: filtered,
-          correctCount,
-          wrongCount
-        });
+        const session_id = latestSession.session_id;
+        const answers = attempts.filter(r => r.session_id === session_id);
+        const correct = answers.filter(a => a.correct).length;
+        const wrong = answers.filter(a => a.correct === false).length;
+        latestResults.push({ student_id, session_id, answers, correct, wrong });
       }
 
-      renderTable(finalResults, studentMap);
+      renderTable(latestResults, studentMap);
     } catch (err) {
-      alert("❌ Lỗi tải dữ liệu từ server");
-      console.error(err);
+      console.error("❌", err);
+      document.getElementById("errorBox").textContent = err.message || "Lỗi tải dữ liệu từ server";
     }
   }
 
@@ -124,39 +84,37 @@
     const head = document.getElementById("tableHead");
     const body = document.getElementById("tableBody");
 
-    const allQuestions = new Set();
-    data.forEach(entry => {
-      entry.answers.forEach(ans => allQuestions.add(ans.question_id));
-    });
-    const sortedQuestions = Array.from(allQuestions).sort();
+    const allQ = new Set();
+    data.forEach(entry => entry.answers.forEach(a => allQ.add(a.question_id)));
+    const sortedQ = Array.from(allQ).sort();
 
     head.innerHTML = `
       <tr>
         <th>Mã SV</th>
-        ${sortedQuestions.map(q => `<th>Câu ${q}</th>`).join("")}
+        ${sortedQ.map(q => `<th>Câu ${q}</th>`).join("")}
         <th>✅ Đúng</th>
         <th>❌ Sai</th>
-        <th>Phiên</th>
+        <th>🕒 Phiên</th>
       </tr>
     `;
 
     body.innerHTML = "";
-    data.forEach(entry => {
+    data.forEach(row => {
       const map = {};
-      entry.answers.forEach(ans => map[ans.question_id] = ans.correct);
-
-      const row = document.createElement("tr");
-      row.innerHTML = `
-        <td>${entry.student_id}</td>
-        ${sortedQuestions.map(q =>
-          map[q] === true ? `<td class="correct">✅</td>` :
-          map[q] === false ? `<td class="wrong">❌</td>` : `<td></td>`
-        ).join("")}
-        <td>${entry.correctCount}</td>
-        <td>${entry.wrongCount}</td>
-        <td>${entry.session_id}</td>
+      row.answers.forEach(a => map[a.question_id] = a.correct);
+      const html = `
+        <tr>
+          <td>${row.student_id}</td>
+          ${sortedQ.map(q =>
+            map[q] === true ? `<td class="correct">✅</td>` :
+            map[q] === false ? `<td class="wrong">❌</td>` : `<td></td>`
+          ).join("")}
+          <td>${row.correct}</td>
+          <td>${row.wrong}</td>
+          <td>${row.session_id}</td>
+        </tr>
       `;
-      body.appendChild(row);
+      body.innerHTML += html;
     });
   }
 
