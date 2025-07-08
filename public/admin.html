@@ -1,9 +1,8 @@
-
 <!DOCTYPE html>
 <html lang="vi">
 <head>
   <meta charset="UTF-8" />
-  <title>Kết quả học sinh - Phiên gần nhất</title>
+  <title>Kết quả học sinh - Phiên làm bài cuối cùng</title>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -58,8 +57,8 @@
 </table>
 
 <script>
-  const API_BASE = "https://codebloom-system.onrender.com";
-  const token = localStorage.getItem("teacher_token");
+  const API_BASE = "http://localhost:3000"; // 🔁 Gọi từ server cục bộ
+  const token = localStorage.getItem("token"); // ✅ lấy từ login
 
   if (!token) {
     alert("🔒 Vui lòng đăng nhập với tư cách giáo viên.");
@@ -122,7 +121,6 @@
     head.innerHTML = `
       <tr>
         <th>Mã SV</th>
-       
         ${sortedQuestions.map(q => `<th>Câu ${q}</th>`).join("")}
         <th>Đúng</th>
         <th>Sai</th>
@@ -140,7 +138,6 @@
       const row = document.createElement("tr");
       row.innerHTML = `
         <td>${entry.student_id}</td>
-       
         ${sortedQuestions.map(q => {
           const val = answerMap[q];
           return val === true
