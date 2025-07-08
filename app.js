@@ -2,165 +2,56 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const { MongoClient } = require('mongodb');
-const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
-const path = require('path');
+const jwt = require('jsonwebtoken');
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-// 👉 Phục vụ file HTML/CSS/JS từ thư mục public
-app.use(express.static(path.join(__dirname, 'public')));
+// Kết nối MongoDB
+const uri = process.env.MONGODB_URI || 'mongodb://localhost:27017';
+const client = new MongoClient(uri);
+let teachersCollection;
 
-const PORT = process.env.PORT || 3000;
-const mongoUri = process.env.MONGODB_URI;
-const JWT_SECRET = process.env.JWT_SECRET || 'secret-key';
+client.connect().then(() => {
+  const db = client.db('your_db_name'); // ⚠️ Đổi thành tên DB bạn dùng
+  teachersCollection = db.collection('teachers');
+  console.log('✅ Kết nối MongoDB thành công');
+}).catch(console.error);
 
-const client = new MongoClient(mongoUri);
-let db;
+// API đăng nhập giáo viên
+app.post('/api/teacher-login', async (req, res) => {
+  const { teacher_id, t_password } = req.body;
 
-function verifyToken(token) {
   try {
-    return jwt.verify(token, JWT_SECRET);
-  } catch (err) {
-    return null;
+    const teacher = await teachersCollection.findOne({ teacher_id });
+
+    if (!teacher) {
+      return res.status(401).json({ message: 'Sai mã giáo viên hoặc mật khẩu' });
+    }
+
+    const isMatch = await bcrypt.compare(t_password, teacher.t_password);
+
+    if (!isMatch) {
+      return res.status(401).json({ message: 'Sai mã giáo viên hoặc mật khẩu' });
+    }
+
+    const token = jwt.sign(
+      { teacher_id: teacher.teacher_id, t_name: teacher.t_name },
+      process.env.JWT_SECRET || 'secret_key',
+      { expiresIn: '1h' }
+    );
+
+    res.json({ message: 'Đăng nhập thành công', token });
+  } catch (error) {
+    console.error('Lỗi đăng nhập:', error);
+    res.status(500).json({ message: 'Lỗi server, thử lại sau' });
   }
-}
+});
 
-function verifyTeacherToken(token) {
-  const decoded = verifyToken(token);
-  return decoded && decoded.role === 'teacher';
-}
-
-async function main() {
-  await client.connect();
-  db = client.db();
-
-  // 🔐 Đăng nhập học sinh
-  app.post('/login', async (req, res) => {
-    const { student_id } = req.body;
-    if (!student_id) return res.status(400).json({ error: 'Thiếu student_id' });
-
-    const token = jwt.sign({ student_id, role: 'student' }, JWT_SECRET);
-    res.json({ token });
-  });
-
-  // 🔐 Đăng nhập giáo viên từ collection "teachers"
-  app.post('/teacher-login', async (req, res) => {
-    const { username, password } = req.body;
-    const teacher = await db.collection('teachers').findOne({ t_name: username });
-
-    if (!teacher) return res.status(401).json({ error: 'Sai tên đăng nhập hoặc mật khẩu' });
-
-    const match = await bcrypt.compare(password, teacher.t_password);
-    if (!match) return res.status(401).json({ error: 'Sai tên đăng nhập hoặc mật khẩu' });
-
-    const token = jwt.sign({ teacher_id: teacher.teacher_id, username, role: 'teacher' }, JWT_SECRET);
-    res.json({ token });
-  });
-
-  // 📄 Lấy danh sách câu hỏi
-  app.get('/questions', async (req, res) => {
-    const questions = await db.collection('questions').find().toArray();
-    res.json(questions);
-  });
-
-  // 📥 Nộp bài của học sinh (lưu vào "results")
-  app.post('/submit', async (req, res) => {
-    const token = req.headers.authorization?.split(' ')[1];
-    const decoded = verifyToken(token);
-    if (!decoded || decoded.role !== 'student') return res.status(401).json({ error: 'Unauthorized' });
-
-    const { question_id, code, session_id } = req.body;
-    const student_id = decoded.student_id;
-
-    if (!question_id || !code || !session_id) return res.status(400).json({ error: 'Thiếu dữ liệu' });
-
-    const correct = code.includes("print"); // Giả lập chấm điểm
-
-    await db.collection('results').insertOne({
-      student_id,
-      question_id,
-      session_id,
-      code,
-      correct,
-      submittedAt: new Date()
-    });
-
-    res.json({ result: correct ? "✅ Đúng" : "❌ Sai" });
-  });
-
-  // ✅ Tổng kết khi học sinh bấm "Xong"
-  app.post('/summary', async (req, res) => {
-    const token = req.headers.authorization?.split(" ")[1];
-    const decoded = verifyToken(token);
-    if (!decoded || decoded.role !== 'student') return res.status(401).json({ error: 'Unauthorized' });
-
-    const { student_id, correct, incorrect, total, session_id } = req.body;
-    await db.collection('summaries').insertOne({
-      student_id,
-      correct,
-      incorrect,
-      total,
-      session_id,
-      createdAt: new Date()
-    });
-
-    res.json({ message: 'Tổng kết đã lưu' });
-  });
-
-  // 👩‍🏫 API dành cho giáo viên: danh sách học sinh
-  app.get('/students', async (req, res) => {
-    const token = req.headers.authorization?.split(" ")[1];
-    if (!verifyTeacherToken(token)) return res.status(401).json({ error: 'Unauthorized' });
-
-    const students = await db.collection('students').find().toArray();
-    res.json(students);
-  });
-
-  // 👩‍🏫 API dành cho giáo viên: lấy kết quả bài làm (collection "results")
-  app.get('/results', async (req, res) => {
-    const token = req.headers.authorization?.split(" ")[1];
-    if (!verifyTeacherToken(token)) return res.status(401).json({ error: 'Unauthorized' });
-
-    const results = await db.collection('results').find().toArray();
-    res.json(results);
-  });
-
-  // 👩‍🏫 API tổng hợp kết quả theo học sinh
-  app.get('/result-summary', async (req, res) => {
-    const token = req.headers.authorization?.split(" ")[1];
-    if (!verifyTeacherToken(token)) return res.status(401).json({ error: 'Unauthorized' });
-
-    const pipeline = [
-      {
-        $group: {
-          _id: "$student_id",
-          answers: {
-            $push: {
-              question_id: "$question_id",
-              correct: "$correct"
-            }
-          },
-          correctCount: { $sum: { $cond: ["$correct", 1, 0] } },
-          wrongCount: { $sum: { $cond: ["$correct", 0, 1] } }
-        }
-      }
-    ];
-
-    const summary = await db.collection('results').aggregate(pipeline).toArray();
-    res.json(summary);
-  });
-
-  // 🔁 Nếu truy cập sai route, trả về file 404.html (nếu có)
-  app.use((req, res) => {
-    res.status(404).sendFile(path.join(__dirname, 'public', '404.html'));
-  });
-
-  app.listen(PORT, () => {
-    console.log(`✅ Server running at http://localhost:${PORT}`);
-  });
-}
-
-main();
+// Khởi động server
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`🚀 Server chạy tại http://localhost:${PORT}`);
+});
