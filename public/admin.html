@@ -1,31 +1,46 @@
-
 <!DOCTYPE html>
 <html lang="vi">
 <head>
   <meta charset="UTF-8" />
-  <title>Kết quả học sinh - Phiên làm bài cuối</title>
+  <title>Kết quả học sinh - Xem theo phiên</title>
   <style>
-    body { font-family: Arial; padding: 20px; background: #f0f0f0; }
-    h2 { margin-bottom: 20px; }
-    table { border-collapse: collapse; width: 100%; background: #fff; }
-    th, td { padding: 10px; border: 1px solid #ccc; text-align: center; }
-    th { background: #e9ecef; }
-    .correct { color: green; font-weight: bold; }
-    .wrong { color: red; font-weight: bold; }
-    .error { color: red; margin-top: 15px; font-weight: bold; }
-    .export-btn {
-      margin-bottom: 15px; padding: 10px 20px;
-      background: #198754; color: white; border: none;
-      border-radius: 5px; cursor: pointer;
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      background: #f9f9f9;
     }
-    .export-btn:hover { background: #157347; }
+    h2 {
+      margin-bottom: 20px;
+    }
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      background: white;
+    }
+    th, td {
+      padding: 10px;
+      border: 1px solid #ccc;
+      text-align: center;
+    }
+    th {
+      background-color: #f0f0f0;
+    }
+    .correct {
+      color: green;
+      font-weight: bold;
+    }
+    .wrong {
+      color: red;
+      font-weight: bold;
+    }
+    select {
+      padding: 6px;
+    }
   </style>
 </head>
 <body>
 
-<h2>📊 Kết quả học sinh - Phiên làm bài cuối cùng</h2>
-<button class="export-btn" onclick="exportToExcel()">📥 Xuất Excel</button>
-<div id="errorBox" class="error"></div>
+<h2>📊 Kết quả học sinh - Theo phiên chọn</h2>
 <table id="resultsTable">
   <thead id="tableHead"></thead>
   <tbody id="tableBody"></tbody>
@@ -36,98 +51,104 @@
   const token = localStorage.getItem("teacher_token");
 
   if (!token) {
-    alert("🔒 Vui lòng đăng nhập trước.");
+    alert("🔒 Vui lòng đăng nhập với tư cách giáo viên.");
     window.location.href = "teacher-login.html";
   }
 
+  let allResults = [];
+  let allQuestions = [];
+
   async function loadResults() {
-    try {
-      const [resultsRes, studentsRes] = await Promise.all([
-        fetch(`${API_BASE}/results`, { headers: { Authorization: `Bearer ${token}` } }),
-        fetch(`${API_BASE}/students`, { headers: { Authorization: `Bearer ${token}` } })
-      ]);
+    const [resultsRes, studentsRes] = await Promise.all([
+      fetch(`${API_BASE}/results`, { headers: { Authorization: `Bearer ${token}` } }),
+      fetch(`${API_BASE}/students`, { headers: { Authorization: `Bearer ${token}` } })
+    ]);
+    const results = await resultsRes.json();
+    const students = await studentsRes.json();
+    const studentMap = {};
+    students.forEach(st => studentMap[st.student_id] = st.full_name || "Chưa rõ");
 
-      if (!resultsRes.ok) throw new Error("Lỗi tải dữ liệu kết quả: " + resultsRes.status);
-      if (!studentsRes.ok) throw new Error("Lỗi tải danh sách học sinh: " + studentsRes.status);
+    allResults = results;
+    allQuestions = [...new Set(results.map(r => r.question_id))].sort();
 
-      const allResults = await resultsRes.json();
-      const students = await studentsRes.json();
-      const studentMap = {};
-      students.forEach(st => studentMap[st.student_id] = st.full_name || "Không rõ");
-
-      const grouped = {};
-      allResults.forEach(r => {
-        if (!grouped[r.student_id]) grouped[r.student_id] = [];
-        grouped[r.student_id].push(r);
-      });
-
-      const latestResults = [];
-      for (const [student_id, attempts] of Object.entries(grouped)) {
-        const latestSession = attempts.reduce((a, b) =>
-          new Date(a.submittedAt) > new Date(b.submittedAt) ? a : b
-        );
-        const session_id = latestSession.session_id;
-        const answers = attempts.filter(r => r.session_id === session_id);
-        const correct = answers.filter(a => a.correct).length;
-        const wrong = answers.filter(a => a.correct === false).length;
-        latestResults.push({ student_id, session_id, answers, correct, wrong });
-      }
-
-      renderTable(latestResults, studentMap);
-    } catch (err) {
-      console.error("❌", err);
-      document.getElementById("errorBox").textContent = err.message || "Lỗi tải dữ liệu từ server";
-    }
+    renderTable(results, studentMap);
   }
 
-  function renderTable(data, studentMap) {
+  function renderTable(results, studentMap) {
     const head = document.getElementById("tableHead");
     const body = document.getElementById("tableBody");
 
-    const allQ = new Set();
-    data.forEach(entry => entry.answers.forEach(a => allQ.add(a.question_id)));
-    const sortedQ = Array.from(allQ).sort();
-
+    // Header
     head.innerHTML = `
       <tr>
         <th>Mã SV</th>
-        ${sortedQ.map(q => `<th>Câu ${q}</th>`).join("")}
-        <th>✅ Đúng</th>
-        <th>❌ Sai</th>
-        <th>🕒 Phiên</th>
+        ${allQuestions.map(q => `<th>Câu ${q}</th>`).join("")}
+        <th>Đúng</th>
+        <th>Sai</th>
+        <th>Phiên</th>
       </tr>
     `;
 
-    body.innerHTML = "";
-    data.forEach(row => {
-      const map = {};
-      row.answers.forEach(a => map[a.question_id] = a.correct);
-      const html = `
-        <tr>
-          <td>${row.student_id}</td>
-          ${sortedQ.map(q =>
-            map[q] === true ? `<td class="correct">✅</td>` :
-            map[q] === false ? `<td class="wrong">❌</td>` : `<td></td>`
-          ).join("")}
-          <td>${row.correct}</td>
-          <td>${row.wrong}</td>
-          <td>${row.session_id}</td>
-        </tr>
-      `;
-      body.innerHTML += html;
+    // Group by student_id → session_id
+    const grouped = {};
+    for (const r of results) {
+      const sid = r.student_id;
+      if (!grouped[sid]) grouped[sid] = {};
+      if (!grouped[sid][r.session_id]) grouped[sid][r.session_id] = [];
+      grouped[sid][r.session_id].push(r);
+    }
+
+    window.sessionDataByStudent = grouped;
+
+    Object.entries(grouped).forEach(([student_id, sessions]) => {
+      const sessionIds = Object.keys(sessions).sort();
+      const latestSession = sessionIds[sessionIds.length - 1];
+
+      const row = document.createElement("tr");
+      row.dataset.studentId = student_id;
+      body.appendChild(row);
+
+      renderSessionRow(student_id, latestSession, row, sessions);
     });
   }
 
-  function exportToExcel() {
-    const table = document.getElementById("resultsTable");
-    const wb = XLSX.utils.table_to_book(table, { sheet: "Kết quả" });
-    XLSX.writeFile(wb, "ket_qua_phien_cuoi.xlsx");
+  function renderSessionRow(student_id, session_id, row, sessions) {
+    const answers = sessions[session_id];
+    const answerMap = {};
+    answers.forEach(ans => answerMap[ans.question_id] = ans.correct);
+
+    const correct = answers.filter(a => a.correct).length;
+    const wrong = answers.filter(a => a.correct === false).length;
+
+    row.innerHTML = `
+      <td>${student_id}</td>
+      ${allQuestions.map(qid => {
+        const val = answerMap[qid];
+        return val === true
+          ? `<td class="correct">✅</td>`
+          : val === false
+            ? `<td class="wrong">❌</td>`
+            : `<td></td>`;
+      }).join("")}
+      <td>${correct}</td>
+      <td>${wrong}</td>
+      <td>
+        <select onchange="changeSession('${student_id}', this.value)">
+          ${Object.keys(sessions).map(id => 
+            `<option value="${id}" ${id === session_id ? "selected" : ""}>${id}</option>`
+          ).join("")}
+        </select>
+      </td>
+    `;
   }
 
-  const script = document.createElement("script");
-  script.src = "https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js";
-  script.onload = loadResults;
-  document.head.appendChild(script);
+  function changeSession(student_id, session_id) {
+    const row = document.querySelector(`tr[data-student-id="${student_id}"]`);
+    const sessions = window.sessionDataByStudent[student_id];
+    renderSessionRow(student_id, session_id, row, sessions);
+  }
+
+  loadResults();
 </script>
 
 </body>
