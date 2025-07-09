@@ -76,10 +76,12 @@
 
       const data = await res.json();
       if (res.ok && data.token) {
-        localStorage.setItem("student_token", data.token);
-        localStorage.setItem("student_id", student_id);
-        window.location.href = "index.html";
-      } else {
+  localStorage.setItem("student_token", data.token);
+  localStorage.setItem("student_id", student_id);
+  localStorage.setItem("session_id", data.session_id); // lưu luôn phiên làm bài
+  window.location.href = "index.html";
+}
+ else {
         alert("❌ Đăng nhập thất bại: " + (data.error || "Không xác định"));
       }
     } catch (err) {

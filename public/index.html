@@ -115,7 +115,12 @@
 
   const sessionForm = document.getElementById("sessionForm");
   const sessionInput = document.getElementById("sessionInput");
-  let session_id = null;
+// 👉 Tự động điền session_id nếu có trong localStorage
+const session_id_saved = localStorage.getItem("session_id");
+if (session_id_saved) {
+  sessionInput.value = session_id_saved;
+}  
+
   let questions = [];
   let selectedQuestion = null;
   const doneQuestions = {};

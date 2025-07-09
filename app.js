@@ -40,11 +40,29 @@ async function main() {
     app.get("/ping", (req, res) => res.send("pong"));
 
     app.post('/login', async (req, res) => {
-      const { student_id } = req.body;
-      if (!student_id) return res.status(400).json({ error: 'Thiếu student_id' });
-      const token = jwt.sign({ student_id, role: 'student' }, JWT_SECRET);
-      res.json({ token });
-    });
+  const { student_id } = req.body;
+  if (!student_id) return res.status(400).json({ error: 'Thiếu student_id' });
+
+  const token = jwt.sign({ student_id, role: 'student' }, JWT_SECRET);
+
+  // 🔢 Tìm session_id mới nhất của học sinh
+  const latestSession = await db.collection('results').find({ student_id })
+    .sort({ submittedAt: -1 }).limit(1).toArray();
+
+  let nextNumber = 1;
+  if (latestSession.length > 0) {
+    const latest = latestSession[0].session_id || "PHIEN_0";
+    const match = latest.match(/PHIEN_(\d+)/);
+    if (match) {
+      nextNumber = parseInt(match[1]) + 1;
+    }
+  }
+
+  const newSessionId = `PHIEN_${nextNumber}`;
+
+  res.json({ token, student_id, session_id: newSessionId });
+});
+
 
     app.post('/teacher-login', async (req, res) => {
       const { username, password } = req.body;
