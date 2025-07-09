@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="vi">
 <head>
@@ -18,6 +17,7 @@
       padding: 30px;
       border-radius: 10px;
       box-shadow: 0 0 15px rgba(0,0,0,0.1);
+      width: 300px;
     }
     input {
       width: 100%;
@@ -41,14 +41,15 @@
     }
   </style>
 </head>
-<div class="login-box">
+<body>
+  <div class="login-container">
     <h2>👩‍🏫 Giáo viên đăng nhập</h2>
     <form id="loginForm">
-      <label for="teacher_id">Mã Giáo viên</label>
-      <input type="text" id="teacher_id" required>
+      <label for="username">Tên đăng nhập</label>
+      <input type="text" id="username" required>
 
-      <label for="t_password">Mật khẩu</label>
-      <input type="password" id="t_password" required>
+      <label for="password">Mật khẩu</label>
+      <input type="password" id="password" required>
 
       <button type="submit">Đăng nhập</button>
     </form>
@@ -60,27 +61,22 @@
     document.getElementById("loginForm").addEventListener("submit", async function (e) {
       e.preventDefault();
 
-      const student_id = document.getElementById("teacher_id").value;
-      const password = document.getElementById("t_password").value;
+      const username = document.getElementById("username").value;
+      const password = document.getElementById("password").value;
       const errorBox = document.getElementById("errorMsg");
 
       try {
-        const res = await fetch("http://localhost:3000/login", {
+        const res = await fetch("/teacher-login", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ teacher_id, t_password })
+          body: JSON.stringify({ username, password })
         });
 
         const data = await res.json();
 
         if (res.ok) {
-          // ✅ Lưu token và student_id
-          localStorage.setItem("token", data.token);
-          localStorage.setItem("teacher_id", teacher_id);
-
+          localStorage.setItem("teacher_token", data.token);
           alert("🎉 Đăng nhập thành công!");
-
-          // 👉 Chuyển sang trang làm bài
           window.location.href = "admin.html";
         } else {
           errorBox.textContent = "❌ " + (data.error || "Sai thông tin đăng nhập");
@@ -91,6 +87,5 @@
       }
     });
   </script>
-
 </body>
 </html>
