@@ -2,48 +2,82 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <title>Đăng nhập Giáo viên</title>
   <style>
-    body { font-family: Arial; background: #f1f3f5; display: flex; justify-content: center; align-items: center; height: 100vh; }
-    .box { background: white; padding: 30px; border-radius: 10px; box-shadow: 0 0 10px rgba(0,0,0,0.1); width: 300px; }
-    input, button { width: 100%; margin-top: 10px; padding: 10px; font-size: 16px; }
-    button { background: #28a745; color: white; border: none; cursor: pointer; }
-    button:hover { background: #218838; }
-    .error { color: red; margin-top: 10px; text-align: center; }
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f1f1f1;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+    .login-container {
+      background: white;
+      padding: 30px;
+      border-radius: 10px;
+      box-shadow: 0 0 15px rgba(0,0,0,0.1);
+    }
+    input {
+      width: 100%;
+      padding: 10px;
+      margin: 10px 0;
+    }
+    button {
+      width: 100%;
+      padding: 10px;
+      background: #007BFF;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #0056b3;
+    }
+    .error {
+      color: red;
+      margin-top: 10px;
+    }
   </style>
 </head>
 <body>
-  <div class="box">
-    <h2>Đăng nhập</h2>
+  <div class="login-container">
+    <h2>Đăng nhập Giáo viên</h2>
     <input type="text" id="teacher_id" placeholder="Mã giáo viên" />
     <input type="password" id="t_password" placeholder="Mật khẩu" />
     <button onclick="login()">Đăng nhập</button>
-    <div id="error" class="error"></div>
+    <div class="error" id="error"></div>
   </div>
+
   <script>
     const API_BASE = "https://codebloom-system.onrender.com";
+
     async function login() {
       const teacher_id = document.getElementById("teacher_id").value;
       const t_password = document.getElementById("t_password").value;
-      const error = document.getElementById("error");
-      error.textContent = "";
+      const errorDiv = document.getElementById("error");
+
       try {
-        const res = await fetch(API_BASE + "/teacher-login", {
+        const res = await fetch(\`\${API_BASE}/teacher-login\`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ teacher_id, t_password })
         });
+
         const data = await res.json();
-        if (!res.ok) return error.textContent = data.message || "Lỗi đăng nhập";
-        localStorage.setItem("token", data.token);
-        window.location.href = "admin.html";
-      } catch (e) {
-        error.textContent = "Không kết nối được máy chủ";
-        console.error(e);
+
+        if (!res.ok) {
+          errorDiv.textContent = data.message || "Đăng nhập thất bại";
+        } else {
+          localStorage.setItem("teacher_token", data.token);
+          alert("✅ Đăng nhập thành công");
+          window.location.href = "admin.html";
+        }
+      } catch (err) {
+        errorDiv.textContent = "❌ Lỗi kết nối máy chủ: " + err.message;
       }
     }
-    fetch(API_BASE + "/api/ping").catch(() => {});
   </script>
 </body>
 </html>
