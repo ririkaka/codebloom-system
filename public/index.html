@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <title>CodeBloom - Làm bài</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      background-color: #f1f1f1;
+    }
+    h2 {
+      margin-bottom: 20px;
+    }
+    select, button {
+      padding: 10px;
+      margin: 10px 0;
+      font-size: 16px;
+    }
+    .question {
+      margin-bottom: 20px;
+      background: white;
+      padding: 15px;
+      border-radius: 10px;
+      box-shadow: 0 0 5px rgba(0,0,0,0.1);
+    }
+    textarea {
+      width: 100%;
+      height: 100px;
+      font-family: monospace;
+      padding: 10px;
+      font-size: 14px;
+    }
+    .result {
+      margin-top: 10px;
+      font-weight: bold;
+    }
+    .submit-btn {
+      background-color: #007bff;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      font-size: 16px;
+      cursor: pointer;
+      border-radius: 6px;
+    }
+  </style>
+</head>
+<body>
+
+<h2>💻 Làm bài CodeBloom</h2>
+
+<div>
+  <label for="sessionSelect">🧩 Chọn phiên làm bài:</label>
+  <select id="sessionSelect"></select>
+</div>
+
+<div id="questionContainer"></div>
+
+<button class="submit-btn" onclick="finish()">Xong</button>
+
+<script>
+  const API_BASE = "https://codebloom-system.onrender.com";
+  const token = localStorage.getItem("student_token");
+
+  if (!token) {
+    alert("Vui lòng đăng nhập");
+    window.location.href = "login.html";
+  }
+
+  let studentId;
+  let questions = [];
+  let sessionId = "";
+
+  async function init() {
+    const decoded = JSON.parse(atob(token.split('.')[1]));
+    studentId = decoded.student_id;
+
+    const [questionRes, resultRes] = await Promise.all([
+      fetch(`${API_BASE}/questions`),
+      fetch(`${API_BASE}/results`, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+    ]);
+
+    questions = await questionRes.json();
+    const allResults = await resultRes.json();
+    const studentResults = allResults.filter(r => r.student_id === studentId);
+
+    // Tìm tất cả các session_id đã dùng
+    const usedSessions = [...new Set(studentResults.map(r => r.session_id))];
+    const maxSession = usedSessions.reduce((max, sid) => Math.max(max, parseInt(sid || 0)), 0);
+    const nextSession = (maxSession + 1).toString();
+
+    // Đổ dropdown cho phép chọn lại phiên cũ hoặc tạo mới
+    const select = document.getElementById("sessionSelect");
+    usedSessions.forEach(sid => {
+      const opt = document.createElement("option");
+      opt.value = sid;
+      opt.textContent = `Phiên ${sid} (đã làm)`;
+      select.appendChild(opt);
+    });
+
+    const optNew = document.createElement("option");
+    optNew.value = nextSession;
+    opt.textContent = `Phiên ${nextSession} (mới)`;
+    optNew.selected = true;
+    select.appendChild(optNew);
+
+    select.onchange = () => {
+      sessionId = select.value;
+      renderQuestions();
+    };
+
+    sessionId = nextSession;
+    renderQuestions();
+  }
+
+  function renderQuestions() {
+    const container = document.getElementById("questionContainer");
+    container.innerHTML = "";
+    questions.forEach(q => {
+      const div = document.createElement("div");
+      div.className = "question";
+      div.innerHTML = `
+        <h4>${q.question_id}: ${q.title || ''}</h4>
+        <textarea id="code_${q.question_id}" placeholder="Viết code ở đây..."></textarea>
+        <button class="submit-btn" onclick="submitCode('${q.question_id}')">Nộp</button>
+        <div class="result" id="result_${q.question_id}"></div>
+      `;
+      container.appendChild(div);
+    });
+  }
+
+  async function submitCode(questionId) {
+    const code = document.getElementById(`code_${questionId}`).value;
+    const res = await fetch(`${API_BASE}/submit`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify({ question_id: questionId, code, session_id: sessionId })
+    });
+    const data = await res.json();
+    document.getElementById(`result_${questionId}`).textContent = data.result || "❌ Lỗi";
+  }
+
+  async function finish() {
+    const res = await fetch(`${API_BASE}/results`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    const results = await res.json();
+    const thisSession = results.filter(r => r.student_id === studentId && r.session_id === sessionId);
+    const correct = thisSession.filter(r => r.correct).length;
+    const incorrect = thisSession.filter(r => r.correct === false).length;
+
+    await fetch(`${API_BASE}/summary`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        student_id: studentId,
+        correct,
+        incorrect,
+        total: thisSession.length,
+        session_id: sessionId
+      })
+    });
+
+    alert("✅ Đã tổng kết bài làm");
+    location.reload();
+  }
+
+  init();
+</script>
+
+</body>
+</html>
