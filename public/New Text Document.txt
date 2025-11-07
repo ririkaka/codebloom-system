@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <title>Đăng nhập Giáo viên</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f1f1f1;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+    .login-container {
+      background: white;
+      padding: 30px;
+      border-radius: 10px;
+      box-shadow: 0 0 15px rgba(0,0,0,0.1);
+      width: 300px;
+    }
+    input {
+      width: 100%;
+      padding: 10px;
+      margin: 10px 0;
+    }
+    button {
+      width: 100%;
+      padding: 10px;
+      background: #007BFF;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #0056b3;
+    }
+    .error {
+      color: red;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div class="login-container">
+    <h2>👩‍🏫 Giáo viên đăng nhập</h2>
+    <form id="loginForm">
+      <label for="username">Tên đăng nhập</label>
+      <input type="text" id="username" required>
+
+      <label for="password">Mật khẩu</label>
+      <input type="password" id="password" required>
+
+      <button type="submit">Đăng nhập</button>
+    </form>
+
+    <div class="error" id="errorMsg"></div>
+  </div>
+
+  <script>
+    document.getElementById("loginForm").addEventListener("submit", async function (e) {
+      e.preventDefault();
+
+      const username = document.getElementById("username").value;
+      const password = document.getElementById("password").value;
+      const errorBox = document.getElementById("errorMsg");
+
+      try {
+        const res = await fetch("/teacher-login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username, password })
+        });
+
+        const data = await res.json();
+
+        if (res.ok) {
+          localStorage.setItem("teacher_token", data.token);
+          alert("🎉 Đăng nhập thành công!");
+          window.location.href = "admin.html";
+        } else {
+          errorBox.textContent = "❌ " + (data.error || "Sai thông tin đăng nhập");
+        }
+      } catch (err) {
+        errorBox.textContent = "🚫 Không thể kết nối tới máy chủ";
+        console.error(err);
+      }
+    });
+  </script>
+</body>
+</html>
+============================================admin=============================
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <title>📊 Kết quả học sinh - CodeBloom</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f4f6f9;
+      margin: 0;
+      padding: 0;
+    }
+    header {
+      background: #007BFF;
+      color: white;
+      padding: 15px;
+      text-align: center;
+    }
+    table {
+      width: 90%;
+      margin: 20px auto;
+      border-collapse: collapse;
+      background: white;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+    th, td {
+      border: 1px solid #ddd;
+      padding: 10px;
+      text-align: center;
+    }
+    th {
+      background: #007BFF;
+      color: white;
+    }
+    .logout {
+      background: #dc3545;
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      cursor: pointer;
+      border-radius: 4px;
+      margin-left: 10px;
+    }
+    .logout:hover {
+      background: #a71d2a;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>📋 Bảng tổng kết kết quả học sinh</h1>
+    <button class="logout" onclick="logout()">Đăng xuất</button>
+  </header>
+
+  <table id="resultTable">
+    <thead>
+      <tr>
+        <th>Mã học sinh</th>
+        <th>Số câu đúng</th>
+        <th>Số câu sai</th>
+        <th>Chi tiết</th>
+      </tr>
+    </thead>
+    <tbody id="resultBody">
+      <tr><td colspan="4">⏳ Đang tải dữ liệu...</td></tr>
+    </tbody>
+  </table>
+
+  <script>
+    async function fetchResults() {
+      const token = localStorage.getItem("teacher_token");
+      if (!token) {
+        alert("Vui lòng đăng nhập lại!");
+        window.location.href = "teacher-login.html";
+        return;
+      }
+
+      try {
+        const res = await fetch("/result-summary", {
+          headers: { Authorization: "Bearer " + token }
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          throw new Error(data.error || "Không thể tải dữ liệu");
+        }
+
+        const tbody = document.getElementById("resultBody");
+        tbody.innerHTML = "";
+
+        if (data.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="4">Không có dữ liệu nào.</td></tr>`;
+          return;
+        }
+
+        data.forEach(item => {
+          const tr = document.createElement("tr");
+          const details = item.answers.map(a => 
+            `${a.question_id}: ${a.correct ? "✅" : "❌"}`
+          ).join(", ");
+          
+          tr.innerHTML = `
+            <td>${item._id}</td>
+            <td>${item.correctCount}</td>
+            <td>${item.wrongCount}</td>
+            <td>${details}</td>
+          `;
+          tbody.appendChild(tr);
+        });
+
+      } catch (err) {
+        console.error(err);
+        document.getElementById("resultBody").innerHTML =
+          `<tr><td colspan="4">🚫 Lỗi tải dữ liệu</td></tr>`;
+      }
+    }
+
+    function logout() {
+      localStorage.removeItem("teacher_token");
+      window.location.href = "teacher-login.html";
+    }
+
+    fetchResults();
+  </script>
+</body>
+</html>
+------------------------------index------------------------------------------
+
+
+
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <title>Làm bài - CodeBloom</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      background: #f2f2f2;
+    }
+    .container {
+      display: flex;
+      height: 100vh;
+    }
+    .sidebar {
+      width: 30%;
+      background: #ffffff;
+      border-right: 1px solid #ddd;
+      padding: 20px;
+      overflow-y: auto;
+    }
+    .main {
+      width: 70%;
+      padding: 20px;
+    }
+    .question-item {
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      margin-bottom: 10px;
+      cursor: pointer;
+    }
+    .question-item.active {
+      background-color: #cce5ff;
+      border-left: 5px solid #007bff;
+    }
+    .question-item.done {
+      background-color: #d4edda;
+      border-left: 5px solid #28a745;
+    }
+    textarea {
+      width: 100%;
+      height: 300px;
+      font-family: monospace;
+      font-size: 15px;
+    }
+    button {
+      padding: 12px 20px;
+      font-size: 16px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      margin-right: 10px;
+    }
+    #submitBtn {
+      background-color: #007bff;
+      color: white;
+    }
+    #submitBtn:disabled {
+      background-color: #ccc;
+    }
+    #finishBtn {
+      background-color: #28a745;
+      color: white;
+    }
+    .timer {
+      text-align: right;
+      font-weight: bold;
+      font-size: 18px;
+      margin-bottom: 10px;
+    }
+    #sessionForm {
+      margin-bottom: 15px;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <div class="sidebar">
+    <h3>🧠 Danh sách câu hỏi</h3>
+    <form id="sessionForm">
+      <label for="sessionInput">🔐 Nhập mã phiên:</label><br>
+      <input type="text" id="sessionInput" required placeholder="VD: PHIEN_123">
+      <button type="submit">Bắt đầu</button>
+    </form>
+    <div id="questionList"></div>
+  </div>
+
+  <div class="main">
+    <div class="timer">⏳ Còn lại: <span id="timeLeft">30:00</span></div>
+    <h3 id="questionTitle">Chọn một câu hỏi để bắt đầu</h3>
+    <textarea id="codeInput" placeholder="// Viết code tại đây..." disabled></textarea>
+
+    <div style="margin-top: 10px;">
+      <button id="submitBtn" disabled>Nộp bài</button>
+      <button id="finishBtn" disabled>Xong</button>
+    </div>
+
+    <div id="resultBox"></div>
+  </div>
+</div>
+
+<script>
+  const API_BASE = "https://codebloom-system.onrender.com";
+  const token = localStorage.getItem("student_token");
+  const student_id = localStorage.getItem("student_id");
+  const startTimeKey = "startTime";
+
+  if (!token || !student_id) {
+    alert("❌ Vui lòng đăng nhập trước!");
+    window.location.href = "login.html";
+  }
+
+  const sessionForm = document.getElementById("sessionForm");
+  const sessionInput = document.getElementById("sessionInput");
+// 👉 Tự động điền session_id nếu có trong localStorage
+const session_id_saved = localStorage.getItem("session_id");
+if (session_id_saved) {
+  sessionInput.value = session_id_saved;
+}  
+
+  let questions = [];
+  let selectedQuestion = null;
+  const doneQuestions = {};
+  const maxTime = 30 * 60 * 1000;
+  const questionList = document.getElementById("questionList");
+  const codeInput = document.getElementById("codeInput");
+  const submitBtn = document.getElementById("submitBtn");
+  const finishBtn = document.getElementById("finishBtn");
+  const resultBox = document.getElementById("resultBox");
+  const questionTitle = document.getElementById("questionTitle");
+
+  // 🚫 Không cho copy/paste/cut trong vùng soạn code
+  ["copy", "paste", "cut"].forEach(evt => {
+    codeInput.addEventListener(evt, e => {
+      e.preventDefault();
+      alert("🚫 Không được sử dụng thao tác này trong vùng code!");
+    });
+  });
+
+  sessionForm.onsubmit = async (e) => {
+    e.preventDefault();
+    session_id = sessionInput.value.trim();
+    if (!session_id) return alert("⚠️ Bạn cần nhập mã phiên!");
+
+    localStorage.setItem("session_id", session_id);
+    localStorage.setItem(startTimeKey, Date.now());
+    sessionInput.disabled = true;
+    sessionForm.querySelector("button").disabled = true;
+
+    submitBtn.disabled = false;
+    finishBtn.disabled = false;
+
+    await loadQuestions();
+    updateCountdown();
+    setInterval(updateCountdown, 1000);
+  };
+
+  function updateCountdown() {
+    const startTime = parseInt(localStorage.getItem(startTimeKey) || "0");
+    const now = Date.now();
+    const elapsed = now - startTime;
+    const remaining = maxTime - elapsed;
+    const timeBox = document.getElementById("timeLeft");
+
+    if (remaining <= 0) {
+      alert("⏰ Hết giờ!");
+      codeInput.disabled = true;
+      submitBtn.disabled = true;
+      return;
+    }
+
+    const minutes = Math.floor(remaining / 60000);
+    const seconds = Math.floor((remaining % 60000) / 1000);
+    timeBox.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+  }
+
+  async function loadQuestions() {
+    const res = await fetch(`${API_BASE}/questions`);
+    questions = await res.json();
+    questions.forEach(q => {
+      const div = document.createElement("div");
+      div.className = "question-item";
+      div.textContent = `${q.question_id} - ${q.content}`;
+      div.onclick = () => selectQuestion(q, div);
+      questionList.appendChild(div);
+    });
+  }
+
+  function selectQuestion(q, element) {
+    if (selectedQuestion?.element) {
+      selectedQuestion.element.classList.remove("active");
+    }
+    selectedQuestion = { data: q, element };
+    element.classList.add("active");
+    questionTitle.textContent = `🧠 ${q.question_id} - ${q.content}`;
+    codeInput.value = "";
+    codeInput.disabled = !!doneQuestions[q.question_id];
+    submitBtn.disabled = !!doneQuestions[q.question_id];
+    resultBox.innerHTML = "";
+  }
+
+  submitBtn.onclick = async () => {
+    const code = codeInput.value.trim();
+    if (!code || !selectedQuestion) return alert("⚠️ Chưa chọn câu hỏi hoặc chưa nhập code!");
+
+    submitBtn.disabled = true;
+
+    const res = await fetch(`${API_BASE}/submit`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        question_id: selectedQuestion.data.question_id,
+        code,
+        session_id
+      })
+    });
+
+    const data = await res.json();
+    if (res.ok) {
+      doneQuestions[selectedQuestion.data.question_id] = data.result;
+      selectedQuestion.element.classList.add("done");
+      alert("📥 Bài đã được nộp!");
+      codeInput.disabled = true;
+    } else {
+      alert("❌ Có lỗi xảy ra: " + data.error);
+      submitBtn.disabled = false;
+    }
+  };
+
+  finishBtn.onclick = () => {
+    const total = questions.length;
+    const done = Object.keys(doneQuestions).length;
+    let correct = 0;
+
+    for (let qid in doneQuestions) {
+      if (doneQuestions[qid].includes("✅")) correct++;
+    }
+
+    const incorrect = done - correct;
+
+    alert(`📊 Kết quả:\n✅ Đúng: ${correct}\n❌ Sai: ${incorrect}\n📌 Chưa làm: ${total - done}`);
+  };
+</script>
+</body>
+</html>
+

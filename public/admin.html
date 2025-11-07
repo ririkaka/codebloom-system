@@ -2,15 +2,16 @@
 <html lang="vi">
 <head>
   <meta charset="UTF-8" />
-  <title>Kết quả học sinh - Xem theo phiên</title>
+  <title>Bảng kết quả học sinh - CodeBloom</title>
   <style>
     body {
       font-family: Arial, sans-serif;
       padding: 20px;
-      background: #f9f9f9;
+      background: #f7f7f7;
     }
     h2 {
-      margin-bottom: 20px;
+      text-align: center;
+      margin-bottom: 25px;
     }
     table {
       border-collapse: collapse;
@@ -19,11 +20,11 @@
     }
     th, td {
       padding: 10px;
-      border: 1px solid #ccc;
+      border: 1px solid #ddd;
       text-align: center;
     }
     th {
-      background-color: #f0f0f0;
+      background: #efefef;
     }
     .correct {
       color: green;
@@ -34,129 +35,163 @@
       font-weight: bold;
     }
     select {
-      padding: 6px;
+      padding: 4px;
+      border-radius: 4px;
+    }
+    .logout-btn {
+      background: #dc3545;
+      color: white;
+      border: none;
+      padding: 8px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      float: right;
+      margin-bottom: 10px;
+    }
+    .logout-btn:hover {
+      background: #b52a35;
     }
   </style>
 </head>
 <body>
 
-<h2>📊 Kết quả học sinh - Theo phiên chọn</h2>
-<table id="resultsTable">
-  <thead id="tableHead"></thead>
-  <tbody id="tableBody"></tbody>
-</table>
+  <button class="logout-btn" onclick="logout()">Đăng xuất</button>
+  <h2>📊 KẾT QUẢ HỌC SINH (Phiên mới nhất)</h2>
 
-<script>
-  const API_BASE = "https://codebloom-system.onrender.com";
-  const token = localStorage.getItem("teacher_token");
+  <table id="resultsTable">
+    <thead id="tableHead"></thead>
+    <tbody id="tableBody"></tbody>
+  </table>
 
-  if (!token) {
-    alert("🔒 Vui lòng đăng nhập với tư cách giáo viên.");
-    window.location.href = "teacher-login.html";
-  }
+  <script>
+    const API_BASE = ""; // dùng đường dẫn gốc cùng host (localhost:5000)
+    const token = localStorage.getItem("teacher_token");
 
-  let allResults = [];
-  let allQuestions = [];
-  let studentMap = {};
-
-  async function loadResults() {
-    const [resultsRes, studentsRes] = await Promise.all([
-      fetch(`${API_BASE}/results`, { headers: { Authorization: `Bearer ${token}` } }),
-      fetch(`${API_BASE}/students`, { headers: { Authorization: `Bearer ${token}` } })
-    ]);
-
-    const results = await resultsRes.json();
-    const students = await studentsRes.json();
-
-    // Map student_id => { name, ... }
-    students.forEach(st => {
-      studentMap[st.student_id] = st.name || "Chưa rõ";
-    });
-
-    allResults = results;
-    allQuestions = [...new Set(results.map(r => r.question_id))].sort();
-
-    renderTable(results);
-  }
-
-  function renderTable(results) {
-    const head = document.getElementById("tableHead");
-    const body = document.getElementById("tableBody");
-
-    // Header
-    head.innerHTML = `
-      <tr>
-        <th>Mã SV</th>
-        <th>Họ tên</th>
-        ${allQuestions.map(q => `<th>Câu ${q}</th>`).join("")}
-        <th>Đúng</th>
-        <th>Sai</th>
-        <th>Phiên</th>
-      </tr>
-    `;
-
-    // Group by student_id → session_id
-    const grouped = {};
-    for (const r of results) {
-      const sid = r.student_id;
-      if (!grouped[sid]) grouped[sid] = {};
-      if (!grouped[sid][r.session_id]) grouped[sid][r.session_id] = [];
-      grouped[sid][r.session_id].push(r);
+    if (!token) {
+      alert("🔒 Bạn chưa đăng nhập. Chuyển hướng về trang đăng nhập...");
+      window.location.href = "teacher-login.html";
     }
 
-    window.sessionDataByStudent = grouped;
+    let allResults = [];
+    let allQuestions = [];
+    let studentMap = {};
 
-    Object.entries(grouped).forEach(([student_id, sessions]) => {
-      const sessionIds = Object.keys(sessions).sort();
-      const latestSession = sessionIds[sessionIds.length - 1];
+    async function loadResults() {
+      try {
+        const [resultsRes, studentsRes] = await Promise.all([
+          fetch(`${API_BASE}/results`, {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
+          fetch(`${API_BASE}/students`, {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
+        ]);
 
-      const row = document.createElement("tr");
-      row.dataset.studentId = student_id;
-      body.appendChild(row);
+        if (!resultsRes.ok || !studentsRes.ok) {
+          throw new Error("Không thể tải dữ liệu");
+        }
 
-      renderSessionRow(student_id, latestSession, row, sessions);
-    });
-  }
+        const results = await resultsRes.json();
+        const students = await studentsRes.json();
 
-  function renderSessionRow(student_id, session_id, row, sessions) {
-    const answers = sessions[session_id];
-    const answerMap = {};
-    answers.forEach(ans => answerMap[ans.question_id] = ans.correct);
+        // Map student_id -> name
+        students.forEach(st => {
+          studentMap[st.student_id] = st.name || "Chưa rõ";
+        });
 
-    const correct = answers.filter(a => a.correct === true).length;
-    const wrong = answers.filter(a => a.correct === false).length;
+        allResults = results;
+        allQuestions = [...new Set(results.map(r => r.question_id))].sort();
 
-    row.innerHTML = `
-      <td>${student_id}</td>
-      <td>${studentMap[student_id] || "Chưa rõ"}</td>
-      ${allQuestions.map(qid => {
-        const val = answerMap[qid];
-        return val === true
-          ? `<td class="correct">✅</td>`
-          : val === false
-            ? `<td class="wrong">❌</td>`
-            : `<td></td>`;
-      }).join("")}
-      <td>${correct}</td>
-      <td>${wrong}</td>
-      <td>
-        <select onchange="changeSession('${student_id}', this.value)">
-          ${Object.keys(sessions).map(id => 
-            `<option value="${id}" ${id === session_id ? "selected" : ""}>${id}</option>`
-          ).join("")}
-        </select>
-      </td>
-    `;
-  }
+        renderTable(results);
+      } catch (err) {
+        console.error(err);
+        alert("🚫 Không thể kết nối máy chủ hoặc tải dữ liệu.");
+      }
+    }
 
-  function changeSession(student_id, session_id) {
-    const row = document.querySelector(`tr[data-student-id="${student_id}"]`);
-    const sessions = window.sessionDataByStudent[student_id];
-    renderSessionRow(student_id, session_id, row, sessions);
-  }
+    function renderTable(results) {
+      const head = document.getElementById("tableHead");
+      const body = document.getElementById("tableBody");
+      head.innerHTML = `
+        <tr>
+          <th>Mã SV</th>
+          <th>Họ tên</th>
+          ${allQuestions.map(q => `<th>Câu ${q}</th>`).join("")}
+          <th>Đúng</th>
+          <th>Sai</th>
+          <th>Phiên</th>
+        </tr>
+      `;
+      body.innerHTML = "";
 
-  loadResults();
-</script>
+      // Gom theo sinh viên → các phiên làm bài
+      const grouped = {};
+      for (const r of results) {
+        const sid = r.student_id;
+        if (!grouped[sid]) grouped[sid] = {};
+        if (!grouped[sid][r.session_id]) grouped[sid][r.session_id] = [];
+        grouped[sid][r.session_id].push(r);
+      }
+
+      window.sessionDataByStudent = grouped;
+
+      Object.entries(grouped).forEach(([student_id, sessions]) => {
+        const sessionIds = Object.keys(sessions).sort();
+        const latestSession = sessionIds[sessionIds.length - 1];
+
+        const row = document.createElement("tr");
+        row.dataset.studentId = student_id;
+        body.appendChild(row);
+
+        renderSessionRow(student_id, latestSession, row, sessions);
+      });
+    }
+
+    function renderSessionRow(student_id, session_id, row, sessions) {
+      const answers = sessions[session_id];
+      const answerMap = {};
+      answers.forEach(ans => answerMap[ans.question_id] = ans.correct);
+
+      const correct = answers.filter(a => a.correct === true).length;
+      const wrong = answers.filter(a => a.correct === false).length;
+
+      row.innerHTML = `
+        <td>${student_id}</td>
+        <td>${studentMap[student_id] || "Chưa rõ"}</td>
+        ${allQuestions.map(qid => {
+          const val = answerMap[qid];
+          return val === true
+            ? `<td class="correct">✅</td>`
+            : val === false
+              ? `<td class="wrong">❌</td>`
+              : `<td></td>`;
+        }).join("")}
+        <td>${correct}</td>
+        <td>${wrong}</td>
+        <td>
+          <select onchange="changeSession('${student_id}', this.value)">
+            ${Object.keys(sessions)
+              .map(id => `<option value="${id}" ${id === session_id ? "selected" : ""}>${id}</option>`)
+              .join("")}
+          </select>
+        </td>
+      `;
+    }
+
+    function changeSession(student_id, session_id) {
+      const row = document.querySelector(`tr[data-student-id="${student_id}"]`);
+      const sessions = window.sessionDataByStudent[student_id];
+      renderSessionRow(student_id, session_id, row, sessions);
+    }
+
+    function logout() {
+      localStorage.removeItem("teacher_token");
+      alert("Đã đăng xuất!");
+      window.location.href = "role-select.html";
+    }
+
+    loadResults();
+  </script>
 
 </body>
 </html>

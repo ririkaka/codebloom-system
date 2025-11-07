@@ -115,11 +115,10 @@
 
   const sessionForm = document.getElementById("sessionForm");
   const sessionInput = document.getElementById("sessionInput");
-// 👉 Tự động điền session_id nếu có trong localStorage
-const session_id_saved = localStorage.getItem("session_id");
-if (session_id_saved) {
-  sessionInput.value = session_id_saved;
-}  
+  const session_id_saved = localStorage.getItem("session_id");
+  if (session_id_saved) {
+    sessionInput.value = session_id_saved;
+  }
 
   let questions = [];
   let selectedQuestion = null;
@@ -129,10 +128,10 @@ if (session_id_saved) {
   const codeInput = document.getElementById("codeInput");
   const submitBtn = document.getElementById("submitBtn");
   const finishBtn = document.getElementById("finishBtn");
+  const exitBtn = document.getElementById("exitBtn");
   const resultBox = document.getElementById("resultBox");
   const questionTitle = document.getElementById("questionTitle");
 
-  // 🚫 Không cho copy/paste/cut trong vùng soạn code
   ["copy", "paste", "cut"].forEach(evt => {
     codeInput.addEventListener(evt, e => {
       e.preventDefault();
@@ -169,6 +168,7 @@ if (session_id_saved) {
       alert("⏰ Hết giờ!");
       codeInput.disabled = true;
       submitBtn.disabled = true;
+      finishBtn.disabled = true;
       return;
     }
 
@@ -180,6 +180,7 @@ if (session_id_saved) {
   async function loadQuestions() {
     const res = await fetch(`${API_BASE}/questions`);
     questions = await res.json();
+    questionList.innerHTML = "";
     questions.forEach(q => {
       const div = document.createElement("div");
       div.className = "question-item";
@@ -243,9 +244,19 @@ if (session_id_saved) {
     }
 
     const incorrect = done - correct;
+    const summary = `📊 Kết quả:
+✅ Đúng: ${correct}
+❌ Sai: ${incorrect}
+📌 Chưa làm: ${total - done}`;
 
-    alert(`📊 Kết quả:\n✅ Đúng: ${correct}\n❌ Sai: ${incorrect}\n📌 Chưa làm: ${total - done}`);
+    if (confirm(summary + "\n\n👉 Bạn có muốn thoát ra không?")) {
+      localStorage.removeItem("session_id");
+      localStorage.removeItem("startTime");
+      window.location.href = "role-select.html";
+    }
   };
+
+  
 </script>
 </body>
 </html>

@@ -2,88 +2,132 @@
 <html lang="vi">
 <head>
   <meta charset="UTF-8" />
-  <title>Đăng nhập Giáo viên</title>
+  <title>Đăng nhập Giáo viên | CodeBloom</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <style>
+    * { box-sizing: border-box; }
     body {
-      font-family: Arial, sans-serif;
-      background-color: #f1f1f1;
+      font-family: 'Segoe UI', sans-serif;
+      background: linear-gradient(135deg, #89f7fe, #66a6ff);
       display: flex;
       justify-content: center;
       align-items: center;
       height: 100vh;
+      margin: 0;
     }
-    .login-container {
-      background: white;
-      padding: 30px;
-      border-radius: 10px;
-      box-shadow: 0 0 15px rgba(0,0,0,0.1);
-      width: 300px;
+    .login-box {
+      background: #fff;
+      padding: 35px 40px;
+      border-radius: 15px;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+      width: 320px;
+      animation: fadeIn 0.5s ease;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    h2 {
+      text-align: center;
+      color: #007BFF;
+      margin-bottom: 25px;
+    }
+    label {
+      font-weight: bold;
+      color: #333;
     }
     input {
       width: 100%;
       padding: 10px;
-      margin: 10px 0;
+      margin-top: 6px;
+      margin-bottom: 16px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      font-size: 15px;
     }
     button {
       width: 100%;
       padding: 10px;
+      font-size: 16px;
       background: #007BFF;
       color: white;
       border: none;
+      border-radius: 6px;
       cursor: pointer;
+      transition: 0.3s;
     }
-    button:hover {
-      background: #0056b3;
-    }
-    .error {
-      color: red;
+    button:hover { background: #0056b3; }
+    .error, .success {
       margin-top: 10px;
+      text-align: center;
+      font-weight: bold;
+    }
+    .error { color: #e63946; }
+    .success { color: #2a9d8f; }
+    .loading {
+      display: none;
+      text-align: center;
+      margin-top: 10px;
+      color: #555;
     }
   </style>
 </head>
 <body>
-  <div class="login-container">
-    <h2>👩‍🏫 Giáo viên đăng nhập</h2>
+  <div class="login-box">
+    <h2>👩‍🏫 Đăng nhập Giáo viên</h2>
     <form id="loginForm">
       <label for="username">Tên đăng nhập</label>
-      <input type="text" id="username" required>
+      <input type="text" id="username" placeholder="Nhập tên đăng nhập" required>
 
       <label for="password">Mật khẩu</label>
-      <input type="password" id="password" required>
+      <input type="password" id="password" placeholder="Nhập mật khẩu" required>
 
       <button type="submit">Đăng nhập</button>
     </form>
 
-    <div class="error" id="errorMsg"></div>
+    <div id="loading" class="loading">⏳ Đang xử lý...</div>
+    <div id="errorMsg" class="error"></div>
+    <div id="successMsg" class="success"></div>
   </div>
 
   <script>
-    document.getElementById("loginForm").addEventListener("submit", async function (e) {
-      e.preventDefault();
+    const form = document.getElementById("loginForm");
+    const loading = document.getElementById("loading");
+    const errorMsg = document.getElementById("errorMsg");
+    const successMsg = document.getElementById("successMsg");
 
-      const username = document.getElementById("username").value;
-      const password = document.getElementById("password").value;
-      const errorBox = document.getElementById("errorMsg");
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      errorMsg.textContent = "";
+      successMsg.textContent = "";
+      loading.style.display = "block";
+
+      const username = document.getElementById("username").value.trim();
+      const password = document.getElementById("password").value.trim();
 
       try {
         const res = await fetch("/teacher-login", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ username, password })
+          body: JSON.stringify({ username, password }),
         });
 
         const data = await res.json();
+        loading.style.display = "none";
 
-        if (res.ok) {
+        if (res.ok && data.token) {
+          successMsg.textContent = "🎉 Đăng nhập thành công! Đang chuyển trang...";
           localStorage.setItem("teacher_token", data.token);
-          alert("🎉 Đăng nhập thành công!");
-          window.location.href = "admin.html";
+          setTimeout(() => {
+            window.location.href = "admin.html";
+          }, 1000);
         } else {
-          errorBox.textContent = "❌ " + (data.error || "Sai thông tin đăng nhập");
+          errorMsg.textContent = "❌ " + (data.error || "Tên đăng nhập hoặc mật khẩu sai");
         }
       } catch (err) {
-        errorBox.textContent = "🚫 Không thể kết nối tới máy chủ";
-        console.error(err);
+        loading.style.display = "none";
+        errorMsg.textContent = "🚫 Không thể kết nối tới máy chủ. Kiểm tra lại server.";
+        console.error("Lỗi đăng nhập:", err);
       }
     });
   </script>
