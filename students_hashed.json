@@ -1,0 +1,17 @@
+[
+  {
+    "student_id": "001",
+    "name": "aaa",
+    "password": "$2b$10$QTN9pJf8EBCos/UVCJtIaeVN4DOz6VL0z6.IIiinfXbS/SPeSuCUm"
+  },
+  {
+    "student_id": "002",
+    "name": "bbb",
+    "password": "$2b$10$TXvA/astVklvH1AoIS/Sf./T6ydF1KHiWnhf.hZ7psFSIOaTZ9tMa"
+  },
+  {
+    "student_id": "003",
+    "name": "ccc",
+    "password": "$2b$10$cF2AHt6wnZ6n2gWhtdVKze1JUs30stL5TUsq099LFd5vNMfMgdfzy"
+  }
+]

@@ -1,0 +1,20 @@
+[
+  {
+    "teacher_id": "t1",
+    "t_name": "ddd",
+    "t_password": 123,
+    "password": "$2b$10$XWHXdVnX4OTBashD1v.huugpISC3ERmObwnIlrmLSZyBqtMmvqhLG"
+  },
+  {
+    "teacher_id": "t2",
+    "t_name": "eee",
+    "t_password": 456,
+    "password": "$2b$10$E/McqIHlqQiijv9eQ3sSke9IUNfpbgG9IYD/6VRRrkK.vaZNbnva."
+  },
+  {
+    "teacher_id": "t3",
+    "t_name": "fff",
+    "t_password": 789,
+    "password": "$2b$10$vIxU.Nu7bvSnmci3gaB6Xuzr100tCKugmw7W2mUT07zssiKs.75zK"
+  }
+]
