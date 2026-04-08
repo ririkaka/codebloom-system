@@ -12,12 +12,9 @@ app.use(express.json());
 app.use(express.static('public'));
 
 // 🔗 Kết nối MongoDB Atlas
-mongoose.connect(process.env.MONGO_URI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-})
-.then(() => console.log("✅ Kết nối MongoDB thành công"))
-.catch(err => console.error("❌ Lỗi MongoDB:", err));
+mongoose.connect("mongodb+srv://CamTu123:CamTu123@cluster0ctu.0fxpqmu.mongodb.net/codebloom?retryWrites=true&w=majority")
+  .then(() => console.log("✅ Kết nối MongoDB thành công"))
+  .catch(err => console.error("❌ Lỗi MongoDB:", err));
 
 // 📌 Test route
 app.get('/api/test', (req, res) => {
