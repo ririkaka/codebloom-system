@@ -3,18 +3,18 @@
     "teacher_id": "t1",
     "t_name": "ddd",
     "t_password": 123,
-    "password": "$2b$10$XWHXdVnX4OTBashD1v.huugpISC3ERmObwnIlrmLSZyBqtMmvqhLG"
+    "password": "$2b$10$OO8Qa1mzQdHeKTdTTRg4L.1ubc43sfoWjfqlH2TMvTYrrJFcMYTCq"
   },
   {
     "teacher_id": "t2",
     "t_name": "eee",
     "t_password": 456,
-    "password": "$2b$10$E/McqIHlqQiijv9eQ3sSke9IUNfpbgG9IYD/6VRRrkK.vaZNbnva."
+    "password": "$2b$10$UW.NBmbo4tC11YxmvkF2luLDMK2snQSFLOISaeJNo8LoagTmKUy6i"
   },
   {
     "teacher_id": "t3",
     "t_name": "fff",
     "t_password": 789,
-    "password": "$2b$10$vIxU.Nu7bvSnmci3gaB6Xuzr100tCKugmw7W2mUT07zssiKs.75zK"
+    "password": "$2b$10$jhnXy6b0ECFolV65mUf3D.w9Umb5zT5Wx3H2MXhh9SUedl86dpafC"
   }
 ]
