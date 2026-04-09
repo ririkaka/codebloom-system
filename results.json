@@ -1,5 +1,4 @@
 [
-  
   { "student_id": "001", "question_id": "Q001", "correct": true,  "session_id": "s001_1" },
   { "student_id": "001", "question_id": "Q002", "correct": false, "session_id": "s001_1" },
   { "student_id": "001", "question_id": "Q003", "correct": true,  "session_id": "s001_1" },
@@ -7,15 +6,6 @@
   { "student_id": "001", "question_id": "Q001", "correct": true,  "session_id": "s001_2" },
   { "student_id": "001", "question_id": "Q002", "correct": true,  "session_id": "s001_2" },
   { "student_id": "001", "question_id": "Q003", "correct": false, "session_id": "s001_2" },
-
-  { "student_id": "001", "question_id": "Q001", "correct": true,  "session_id": "s001_3" },
-  { "student_id": "001", "question_id": "Q002", "correct": true,  "session_id": "s001_3" },
-  { "student_id": "001", "question_id": "Q003", "correct": true,  "session_id": "s001_3" },
-
-  { "student_id": "001", "question_id": "Q001", "correct": true,  "session_id": "s001_4" },
-  { "student_id": "001", "question_id": "Q002", "correct": true,  "session_id": "s001_4" },
-  { "student_id": "001", "question_id": "Q003", "correct": true,  "session_id": "s001_4" },
-
 
   { "student_id": "002", "question_id": "Q001", "correct": false, "session_id": "s002_1" },
   { "student_id": "002", "question_id": "Q002", "correct": false, "session_id": "s002_1" },
@@ -25,28 +15,11 @@
   { "student_id": "002", "question_id": "Q002", "correct": false, "session_id": "s002_2" },
   { "student_id": "002", "question_id": "Q003", "correct": true,  "session_id": "s002_2" },
 
-  { "student_id": "002", "question_id": "Q001", "correct": true,  "session_id": "s002_3" },
-  { "student_id": "002", "question_id": "Q002", "correct": true,  "session_id": "s002_3" },
-  { "student_id": "002", "question_id": "Q003", "correct": false, "session_id": "s002_3" },
-
-
   { "student_id": "003", "question_id": "Q001", "correct": false, "session_id": "s003_1" },
   { "student_id": "003", "question_id": "Q002", "correct": true,  "session_id": "s003_1" },
   { "student_id": "003", "question_id": "Q003", "correct": false, "session_id": "s003_1" },
 
   { "student_id": "003", "question_id": "Q001", "correct": true,  "session_id": "s003_2" },
   { "student_id": "003", "question_id": "Q002", "correct": true,  "session_id": "s003_2" },
-  { "student_id": "003", "question_id": "Q003", "correct": false, "session_id": "s003_2" },
-
-  { "student_id": "003", "question_id": "Q001", "correct": true,  "session_id": "s003_3" },
-  { "student_id": "003", "question_id": "Q002", "correct": true,  "session_id": "s003_3" },
-  { "student_id": "003", "question_id": "Q003", "correct": true,  "session_id": "s003_3" },
-
-  { "student_id": "003", "question_id": "Q001", "correct": true,  "session_id": "s003_4" },
-  { "student_id": "003", "question_id": "Q002", "correct": true,  "session_id": "s003_4" },
-  { "student_id": "003", "question_id": "Q003", "correct": true,  "session_id": "s003_4" },
-
-  { "student_id": "003", "question_id": "Q001", "correct": true,  "session_id": "s003_5" },
-  { "student_id": "003", "question_id": "Q002", "correct": false, "session_id": "s003_5" },
-  { "student_id": "003", "question_id": "Q003", "correct": true,  "session_id": "s003_5" }
+  { "student_id": "003", "question_id": "Q003", "correct": true,  "session_id": "s003_2" }
 ]
