@@ -1,0 +1,92 @@
+[
+  {
+    "question_id": "Q001",
+    "content": "Viết hàm kiểm tra số chẵn hay lẻ.",
+    "level": "Nhận biết",
+    "test_cases": [
+      { "input": 1, "output": "Lẻ" },
+      { "input": 2, "output": "Chẵn" }
+    ]
+  },
+  {
+    "question_id": "Q002",
+    "content": "Viết hàm tính tổng hai số.",
+    "level": "Nhận biết",
+    "test_cases": [
+      { "input": [2, 3], "output": 5 },
+      { "input": [10, 5], "output": 15 }
+    ]
+  },
+  {
+    "question_id": "Q003",
+    "content": "Viết hàm tìm số lớn nhất trong 3 số.",
+    "level": "Thông hiểu",
+    "test_cases": [
+      { "input": [1, 5, 3], "output": 5 },
+      { "input": [7, 2, 9], "output": 9 }
+    ]
+  },
+  {
+    "question_id": "Q004",
+    "content": "Viết hàm kiểm tra một số có phải số nguyên tố không.",
+    "level": "Thông hiểu",
+    "test_cases": [
+      { "input": 5, "output": true },
+      { "input": 8, "output": false }
+    ]
+  },
+  {
+    "question_id": "Q005",
+    "content": "Viết hàm tính giai thừa của một số n.",
+    "level": "Vận dụng",
+    "test_cases": [
+      { "input": 4, "output": 24 },
+      { "input": 5, "output": 120 }
+    ]
+  },
+  {
+    "question_id": "Q006",
+    "content": "Viết hàm đảo ngược chuỗi.",
+    "level": "Vận dụng",
+    "test_cases": [
+      { "input": "abc", "output": "cba" },
+      { "input": "hello", "output": "olleh" }
+    ]
+  },
+  {
+    "question_id": "Q007",
+    "content": "Viết hàm đếm số lượng số chẵn trong mảng.",
+    "level": "Vận dụng",
+    "test_cases": [
+      { "input": [1, 2, 3, 4], "output": 2 },
+      { "input": [2, 4, 6], "output": 3 }
+    ]
+  },
+  {
+    "question_id": "Q008",
+    "content": "Viết hàm tìm phần tử lớn nhất trong mảng.",
+    "level": "Phân tích",
+    "test_cases": [
+      { "input": [1, 9, 3, 7], "output": 9 },
+      { "input": [10, 20, 5], "output": 20 }
+    ]
+  },
+  {
+    "question_id": "Q009",
+    "content": "Viết hàm kiểm tra chuỗi có phải là palindrome không.",
+    "level": "Phân tích",
+    "test_cases": [
+      { "input": "madam", "output": true },
+      { "input": "hello", "output": false }
+    ]
+  },
+  {
+    "question_id": "Q010",
+    "content": "Viết hàm sắp xếp mảng số tăng dần.",
+    "level": "Phân tích",
+    "test_cases": [
+      { "input": [3, 1, 2], "output": [1, 2, 3] },
+      { "input": [5, 2, 8], "output": [2, 5, 8] }
+    ]
+  }
+]
