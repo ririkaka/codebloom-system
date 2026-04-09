@@ -112,7 +112,7 @@ app.post("/teacher/login", async (req, res) => {
     const token = jwt.sign(
       { teacher_id: teacher.teacher_id },
       SECRET_KEY,
-      { expiresIn: "12h" }
+      { expiresIn: "2h" }
     );
 
     res.json({ token });

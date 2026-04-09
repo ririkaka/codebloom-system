@@ -2,23 +2,60 @@
 <html lang="vi">
 <head>
   <meta charset="UTF-8">
-  <title>Admin - Kết quả</title>
+  <title>Kết quả học sinh</title>
 
   <style>
-    body { font-family: Arial; padding: 20px; background: #f4f6f9; }
-    table { width: 100%; border-collapse: collapse; background: white; margin-top: 10px; }
-    th, td { border: 1px solid #ddd; padding: 8px; text-align: center; }
-    th { background: #eee; }
+    body {
+      font-family: Arial;
+      background: #f4f6f9;
+      padding: 20px;
+    }
+
+    h2 {
+      text-align: center;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: white;
+    }
+
+    th, td {
+      border: 1px solid #ddd;
+      padding: 8px;
+      text-align: center;
+    }
+
+    th {
+      background: #eee;
+    }
+
     .correct { color: green; font-weight: bold; }
     .wrong { color: red; font-weight: bold; }
-    button { padding: 8px 12px; background: red; color: white; border: none; cursor: pointer; }
+
+    .top-bar {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+
+    button {
+      background: red;
+      color: white;
+      border: none;
+      padding: 8px 12px;
+      cursor: pointer;
+    }
   </style>
 </head>
 
 <body>
 
-<h2>📊 KẾT QUẢ HỌC SINH</h2>
-<button onclick="logout()">Đăng xuất</button>
+<div class="top-bar">
+  <h2>📊 KẾT QUẢ HỌC SINH (Phiên mới nhất)</h2>
+  <button onclick="logout()">Đăng xuất</button>
+</div>
 
 <table>
   <thead id="tableHead"></thead>
@@ -26,23 +63,22 @@
 </table>
 
 <script>
-const API_BASE = "https://codebloom-system.onrender.com";
+const API_BASE = "https://codebloom-system.onrender.com"; // 🔥 sửa đúng domain
 
 const token = localStorage.getItem("teacher_token");
 
-// 🔒 check login
 if (!token) {
-  alert("Bạn chưa đăng nhập!");
+  alert("🔒 Bạn chưa đăng nhập");
   window.location.href = "teacher-login.html";
 }
 
+let allResults = [];
 let studentMap = {};
+let questionMap = {};
 let allQuestions = [];
-let sessionData = {};
 
 async function loadResults() {
   try {
-
     const [resultsRes, studentsRes, questionsRes] = await Promise.all([
       fetch(`${API_BASE}/results`, {
         headers: { Authorization: `Bearer ${token}` }
@@ -53,44 +89,28 @@ async function loadResults() {
       fetch(`${API_BASE}/questions`)
     ]);
 
-    // 🔥 CHECK TOKEN HẾT HẠN
-    if (resultsRes.status === 401 || studentsRes.status === 401) {
-      alert("🔒 Phiên đăng nhập đã hết hạn!");
-      logout();
-      return;
-    }
-
     const results = await resultsRes.json();
     const students = await studentsRes.json();
     const questions = await questionsRes.json();
-
-    console.log("RESULTS:", results);
-    console.log("STUDENTS:", students);
-
-    // 🚨 tránh crash
-    if (!Array.isArray(results) || !Array.isArray(students)) {
-      alert("❌ Dữ liệu không hợp lệ!");
-      return;
-    }
-
-    if (results.length === 0) {
-      alert("⚠️ Chưa có dữ liệu kết quả!");
-      return;
-    }
 
     // map student
     students.forEach(s => {
       studentMap[s.student_id] = s.name;
     });
 
-    // danh sách câu hỏi
+    // map question
+    questions.forEach(q => {
+      questionMap[q.question_id] = q.level;
+    });
+
+    allResults = results;
     allQuestions = [...new Set(results.map(r => r.question_id))].sort();
 
     renderTable(results);
 
   } catch (err) {
-    console.error("LỖI:", err);
-    alert("🚫 Không kết nối được server!");
+    console.error(err);
+    alert("🚫 Lỗi tải dữ liệu");
   }
 }
 
@@ -119,16 +139,18 @@ function renderTable(results) {
     grouped[r.student_id][r.session_id].push(r);
   });
 
-  sessionData = grouped;
+  window.sessionData = grouped;
 
   Object.keys(grouped).forEach(student_id => {
     const sessions = grouped[student_id];
-    const latest = Object.keys(sessions).sort().pop();
+    const sessionIds = Object.keys(sessions).sort();
+    const latest = sessionIds[sessionIds.length - 1];
 
     const row = document.createElement("tr");
     row.dataset.studentId = student_id;
 
     renderRow(student_id, latest, row, sessions);
+
     body.appendChild(row);
   });
 }
@@ -172,7 +194,7 @@ function renderRow(student_id, session_id, row, sessions) {
 
 function changeSession(student_id, session_id) {
   const row = document.querySelector(`tr[data-student-id="${student_id}"]`);
-  renderRow(student_id, session_id, row, sessionData[student_id]);
+  renderRow(student_id, session_id, row, window.sessionData[student_id]);
 }
 
 function logout() {
