@@ -1,34 +1,169 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bảng kết quả học sinh - CodeBloom Admin</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f8f9fa; margin: 0; padding: 20px; }
+        .container { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); max-width: 1200px; margin: auto; }
+        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #eee; padding-bottom: 15px; margin-bottom: 20px; }
+        h2 { color: #333; margin: 0; display: flex; align-items: center; gap: 10px; }
+        .btn-logout { background: #dc3545; color: white; border: none; padding: 8px 18px; border-radius: 6px; cursor: pointer; font-weight: bold; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { border: 1px solid #dee2e6; padding: 12px; text-align: center; }
+        th { background-color: #f1f3f5; color: #495057; font-weight: 600; }
+        .correct { color: #28a745; font-size: 18px; }
+        .wrong { color: #dc3545; font-size: 18px; font-weight: bold; }
+        select { padding: 5px; border-radius: 4px; border: 1px solid #ccc; cursor: pointer; }
+        .loading { text-align: center; padding: 20px; font-style: italic; color: #666; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header">
+        <h2>📊 KẾT QUẢ HỌC SINH (Phiên mới nhất)</h2>
+        <button class="btn-logout" onclick="logout()">Đăng xuất</button>
+    </div>
+
+    <div id="loading" class="loading">Đang tải dữ liệu từ server...</div>
+
+    <table id="adminTable" style="display: none;">
+        <thead>
+            <tr id="tableHead">
+                <th>Mã SV</th>
+                <th>Họ tên</th>
+                <th>Đúng</th>
+                <th>Sai</th>
+                <th>Phiên</th>
+            </tr>
+        </thead>
+        <tbody id="tableBody">
+            </tbody>
+    </table>
+</div>
+
 <script>
-    // Tự động nhận diện URL
-    const isLocal = window.location.hostname === "localhost";
+    // 1. CẤU HÌNH URL: Tự động nhận diện Local hay Render
+    const isLocal = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
     const API_BASE = isLocal ? "http://localhost:5000" : "https://codebloom-system.onrender.com";
 
-    async function loadAdminData() {
+    // Kiểm tra quyền truy cập
+    if (!localStorage.getItem("teacher_token")) {
+        window.location.href = "teacher-login.html";
+    }
+
+    let studentMap = {};
+    let questionIds = [];
+    let allDataGrouped = {};
+
+    async function fetchData() {
         try {
-            // QUAN TRỌNG: Thêm /api/ vào trước results và students
+            // Gọi đồng thời cả 2 API để tối ưu tốc độ
             const [resResults, resStudents] = await Promise.all([
                 fetch(`${API_BASE}/api/results`),
                 fetch(`${API_BASE}/api/students`)
             ]);
 
-            if (!resResults.ok || !resStudents.ok) throw new Error("Server error");
+            // Kiểm tra nếu Server trả về lỗi hoặc file HTML (Unexpected token <)
+            if (!resResults.ok || !resStudents.ok) throw new Error("Server trả về lỗi!");
 
             const results = await resResults.json();
             const students = await resStudents.json();
-            renderTable(results, students);
+
+            // Lưu tên học sinh theo ID
+            students.forEach(s => studentMap[s.student_id] = s.name);
+
+            // Lấy danh sách các Mã câu hỏi (Q001, Q002...) để tạo cột
+            questionIds = [...new Set(results.map(r => r.question_id))].sort();
+
+            // Nhóm dữ liệu: [Mã SV] -> [Phiên] -> [Danh sách câu trả lời]
+            allDataGrouped = {};
+            results.forEach(r => {
+                const sId = r.studentId || r.student_id; // Linh hoạt theo model
+                if (!allDataGrouped[sId]) allDataGrouped[sId] = {};
+                if (!allDataGrouped[sId][r.session_id]) allDataGrouped[sId][r.session_id] = [];
+                allDataGrouped[sId][r.session_id].push(r);
+            });
+
+            renderHeader();
+            renderInitialTable();
+
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('adminTable').style.display = 'table';
+
         } catch (err) {
             console.error(err);
-            alert("Lỗi: Server chưa sẵn sàng hoặc sai đường dẫn API!");
+            document.getElementById('loading').innerHTML = 
+                `<b style="color:red">❌ Lỗi kết nối!</b><br>Render có thể đang sleep. Hãy đợi 30s rồi nhấn F5.`;
         }
     }
 
-    function renderTable(results, students) {
-        const studentMap = {};
-        students.forEach(s => studentMap[s.student_id] = s.name);
-        // Logic hiển thị bảng giống như ảnh bạn đã cung cấp
-        const tableBody = document.getElementById('tableBody');
-        // ... code render bảng của bạn ...
+    function renderHeader() {
+        const head = document.getElementById('tableHead');
+        head.innerHTML = `
+            <th>Mã SV</th>
+            <th>Họ tên</th>
+            ${questionIds.map(q => `<th>Câu ${q}</th>`).join('')}
+            <th>Đúng</th>
+            <th>Sai</th>
+            <th>Phiên</th>
+        `;
     }
 
-    loadAdminData();
+    function renderInitialTable() {
+        const body = document.getElementById('tableBody');
+        body.innerHTML = "";
+
+        Object.entries(allDataGrouped).forEach(([sId, sessions]) => {
+            const sessionList = Object.keys(sessions).sort().reverse(); // Phiên mới nhất lên đầu
+            const row = document.createElement('tr');
+            row.id = `row-${sId}`;
+            body.appendChild(row);
+            
+            // Mặc định hiển thị phiên mới nhất cho mỗi học sinh
+            updateRow(sId, sessionList[0]);
+        });
+    }
+
+    function updateRow(sId, currentSess) {
+        const row = document.getElementById(`row-${sId}`);
+        const sessionData = allDataGrouped[sId][currentSess];
+        const sessionList = Object.keys(allDataGrouped[sId]).sort().reverse();
+
+        // Tạo bản đồ kết quả cho phiên này
+        const ansMap = {};
+        sessionData.forEach(d => ansMap[d.question_id] = d.correct);
+
+        const correctCount = sessionData.filter(d => d.correct).length;
+        const wrongCount = sessionData.filter(d => !d.correct).length;
+
+        row.innerHTML = `
+            <td>${sId}</td>
+            <td>${studentMap[sId] || "Chưa rõ"}</td>
+            ${questionIds.map(q => {
+                if (ansMap[q] === true) return `<td class="correct">✅</td>`;
+                if (ansMap[q] === false) return `<td class="wrong">✖</td>`;
+                return `<td>-</td>`;
+            }).join('')}
+            <td class="correct">${correctCount}</td>
+            <td class="wrong">${wrongCount}</td>
+            <td>
+                <select onchange="updateRow('${sId}', this.value)">
+                    ${sessionList.map(s => `<option value="${s}" ${s === currentSess ? 'selected' : ''}>${s}</option>`).join('')}
+                </select>
+            </td>
+        `;
+    }
+
+    function logout() {
+        localStorage.removeItem("teacher_token");
+        window.location.href = "teacher-login.html";
+    }
+
+    // Chạy khi trang tải xong
+    loadData();
 </script>
+</body>
+</html>
