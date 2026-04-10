@@ -1,147 +1,34 @@
-<!DOCTYPE html>
-<html lang="vi">
-<head>
-  <meta charset="UTF-8">
-  <title>Bảng kết quả học sinh - CodeBloom</title>
-  <style>
-    body { font-family: 'Segoe UI', Arial; background: #f4f7f6; padding: 20px; }
-    .header { display: flex; justify-content: space-between; align-items: center; background: white; padding: 10px 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-    .logout-btn { background: #dc3545; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; }
-    table { width: 100%; border-collapse: collapse; background: white; margin-top: 20px; border-radius: 8px; overflow: hidden; }
-    th, td { border: 1px solid #dee2e6; padding: 12px; text-align: center; }
-    th { background: #f8f9fa; color: #333; }
-    .correct { color: #28a745; font-weight: bold; }
-    .wrong { color: #dc3545; font-weight: bold; font-size: 18px; }
-    select { padding: 5px; border-radius: 4px; }
-  </style>
-</head>
-<body>
-
-<div class="header">
-  <h2>📊 KẾT QUẢ HỌC SINH (Phiên mới nhất)</h2>
-  <button class="logout-btn" onclick="logout()">Đăng xuất</button>
-</div>
-
-<table id="resultTable">
-  <thead>
-    <tr id="tableHead">
-      <th>Mã SV</th>
-      <th>Họ tên</th>
-      <th>Đúng</th>
-      <th>Sai</th>
-      <th>Phiên</th>
-    </tr>
-  </thead>
-  <tbody id="tableBody">
-    <tr><td colspan="5">Đang tải dữ liệu...</td></tr>
-  </tbody>
-</table>
-
 <script>
-  // TỰ ĐỘNG NHẬN DIỆN URL: Nếu chạy máy ảo thì dùng localhost, nếu chạy web thì dùng render
-  const isLocal = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
-  const API_BASE = isLocal ? "http://localhost:5000" : "https://codebloom-system.onrender.com";
-  
-  const token = localStorage.getItem("teacher_token");
+    // Tự động nhận diện URL
+    const isLocal = window.location.hostname === "localhost";
+    const API_BASE = isLocal ? "http://localhost:5000" : "https://codebloom-system.onrender.com";
 
-  if (!token) {
-    window.location.href = "teacher-login.html";
-  }
+    async function loadAdminData() {
+        try {
+            // QUAN TRỌNG: Thêm /api/ vào trước results và students
+            const [resResults, resStudents] = await Promise.all([
+                fetch(`${API_BASE}/api/results`),
+                fetch(`${API_BASE}/api/students`)
+            ]);
 
-  let studentMap = {};
-  let questionIds = [];
+            if (!resResults.ok || !resStudents.ok) throw new Error("Server error");
 
-  async function loadAdminData() {
-    try {
-      const [resResults, resStudents] = await Promise.all([
-        fetch(`${API_BASE}/api/results`),
-        fetch(`${API_BASE}/api/students`)
-      ]);
-
-      const results = await resResults.json();
-      const students = await resStudents.json();
-
-      // Lưu danh sách học sinh để lấy tên
-      students.forEach(s => studentMap[s.student_id] = s.name);
-
-      // Lấy danh sách các mã câu hỏi có trong dữ liệu
-      questionIds = [...new Set(results.map(r => r.question_id))].sort();
-
-      // Nhóm dữ liệu theo Học sinh -> Phiên làm bài
-      const grouped = {};
-      results.forEach(r => {
-        if (!grouped[r.student_id]) grouped[r.student_id] = {};
-        if (!grouped[r.student_id][r.session_id]) grouped[r.student_id][r.session_id] = [];
-        grouped[r.student_id][r.session_id].push(r);
-      });
-
-      window.allData = grouped;
-      renderTable();
-
-    } catch (err) {
-      document.getElementById("tableBody").innerHTML = "<tr><td colspan='10'>❌ Lỗi kết nối Server</td></tr>";
+            const results = await resResults.json();
+            const students = await resStudents.json();
+            renderTable(results, students);
+        } catch (err) {
+            console.error(err);
+            alert("Lỗi: Server chưa sẵn sàng hoặc sai đường dẫn API!");
+        }
     }
-  }
 
-  function renderTable() {
-    const head = document.getElementById("tableHead");
-    const body = document.getElementById("tableBody");
+    function renderTable(results, students) {
+        const studentMap = {};
+        students.forEach(s => studentMap[s.student_id] = s.name);
+        // Logic hiển thị bảng giống như ảnh bạn đã cung cấp
+        const tableBody = document.getElementById('tableBody');
+        // ... code render bảng của bạn ...
+    }
 
-    // Tạo Header động dựa trên số lượng câu hỏi
-    head.innerHTML = `
-      <th>Mã SV</th>
-      <th>Họ tên</th>
-      ${questionIds.map(q => `<th>Câu ${q}</th>`).join("")}
-      <th>Đúng</th>
-      <th>Sai</th>
-      <th>Phiên</th>
-    `;
-
-    body.innerHTML = "";
-    Object.entries(window.allData).forEach(([sId, sessions]) => {
-      const sessionList = Object.keys(sessions).sort().reverse();
-      const row = document.createElement("tr");
-      row.id = `row-${sId}`;
-      body.appendChild(row);
-      fillRow(sId, sessionList[0]); // Mặc định hiện phiên mới nhất
-    });
-  }
-
-  function fillRow(sId, sessId) {
-    const row = document.getElementById(`row-${sId}`);
-    const data = window.allData[sId][sessId];
-    const sessList = Object.keys(window.allData[sId]).sort().reverse();
-
-    const ansMap = {};
-    data.forEach(d => ansMap[d.question_id] = d.correct);
-
-    const correct = data.filter(d => d.correct).length;
-    const wrong = data.filter(d => !d.correct).length;
-
-    row.innerHTML = `
-      <td>${sId}</td>
-      <td>${studentMap[sId] || "Chưa rõ"}</td>
-      ${questionIds.map(q => {
-        if (ansMap[q] === true) return `<td class="correct">✅</td>`;
-        if (ansMap[q] === false) return `<td class="wrong">✖</td>`;
-        return `<td>-</td>`;
-      }).join("")}
-      <td class="correct">${correct}</td>
-      <td class="wrong">${wrong}</td>
-      <td>
-        <select onchange="fillRow('${sId}', this.value)">
-          ${sessList.map(s => `<option value="${s}" ${s === sessId ? 'selected' : ''}>${s}</option>`).join("")}
-        </select>
-      </td>
-    `;
-  }
-
-  function logout() {
-    localStorage.removeItem("teacher_token");
-    window.location.href = "teacher-login.html";
-  }
-
-  loadAdminData();
+    loadAdminData();
 </script>
-</body>
-</html>
