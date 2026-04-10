@@ -94,32 +94,34 @@ app.post("/teacher/login", async (req, res) => {
   const { username, password } = req.body;
 
   try {
-    // 🔍 tìm theo t_name
+    // 🔍 Tìm theo t_name
     const teacher = await Teacher.findOne({ t_name: username });
 
     if (!teacher) {
       return res.status(401).json({ message: "Sai tài khoản" });
     }
 
-    // 🔐 so sánh password đã mã hóa
+    // 🔐 So sánh password đã mã hóa
     const isMatch = await bcrypt.compare(password, teacher.t_password);
 
     if (!isMatch) {
       return res.status(401).json({ message: "Sai mật khẩu" });
     }
 
-    // 🔥 tạo token
+    // 🔥 Tạo token
     const token = jwt.sign(
-     { teacher_id: teacher.teacher_id },
+      { teacher_id: teacher.teacher_id },
       SECRET_KEY,
-    { expiresIn: "12h" }
+      { expiresIn: "12h" }
     );
 
+    // Trả về token thành công
     res.json({ token });
 
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Lỗi server" });
+  } catch (error) {
+    // ❌ Xử lý lỗi hệ thống hoặc lỗi DB
+    console.error(error);
+    res.status(500).json({ message: "Lỗi máy chủ nội bộ" });
   }
 });
 
