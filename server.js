@@ -110,9 +110,9 @@ app.post("/teacher/login", async (req, res) => {
 
     // 🔥 tạo token
     const token = jwt.sign(
-      { teacher_id: teacher.teacher_id },
+     { teacher_id: teacher.teacher_id },
       SECRET_KEY,
-      { expiresIn: "12h" }
+   //   { expiresIn: "12h" }
     );
 
     res.json({ token });

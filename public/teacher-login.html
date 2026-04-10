@@ -85,39 +85,65 @@
 </div>
 
 <script>
-  const API_BASE = "http://localhost:5000";
+const API_BASE = "https://codebloom-system.onrender.com";
 
-  async function login() {
-    const username = document.getElementById("username").value;
-    const password = document.getElementById("password").value;
+async function login() {
+  const username = document.getElementById("username").value.trim();
+  const password = document.getElementById("password").value.trim();
 
-    try {
-      const res = await fetch(`${API_BASE}/teacher/login`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({ username, password })
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        alert("❌ " + data.message);
-        return;
-      }
-
-      // 🔥 LƯU TOKEN (cực kỳ quan trọng)
-      localStorage.setItem("teacher_token", data.token);
-
-      alert("✅ Đăng nhập thành công!");
-      window.location.href = "admin.html";
-
-    } catch (err) {
-      console.error(err);
-      alert("🚫 Không kết nối được server");
-    }
+  if (!username || !password) {
+    alert("⚠️ Vui lòng nhập đầy đủ thông tin");
+    return;
   }
+
+  try {
+    console.log("Đang gọi API...");
+
+    const res = await fetch(`${API_BASE}/teacher/login`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ username, password })
+    });
+
+    console.log("Status:", res.status);
+
+    const text = await res.text(); // đọc raw trước
+    console.log("Response:", text);
+
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch {
+      throw new Error("Server không trả JSON hợp lệ");
+    }
+
+    if (!res.ok) {
+      alert("❌ " + (data.message || "Đăng nhập thất bại"));
+      return;
+    }
+
+    // Lưu token
+    localStorage.setItem("teacher_token", data.token);
+
+    alert("✅ Đăng nhập thành công!");
+    window.location.href = "D:/codebloom-system/public/admin.html";
+
+  } catch (err) {
+    console.error("Lỗi:", err);
+
+    alert(`🚫 Không kết nối được server!
+
+Nguyên nhân có thể:
+- Server Render đang sleep (đợi 30s rồi thử lại)
+- Sai URL API
+- Bị CORS
+
+Chi tiết lỗi:
+${err.message}`);
+  }
+}
 </script>
 
 </body>
