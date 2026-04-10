@@ -1,158 +1,121 @@
-require("dotenv").config();
-const express = require("express");
-const mongoose = require("mongoose");
-const cors = require("cors");
-const jwt = require("jsonwebtoken");
-const bcrypt = require("bcrypt");
+const express = require('express');
+const mongoose = require('mongoose');
+const cors = require('cors');
+const path = require('path');
 
 const app = express();
 
-// ✅ 1. Cấu hình CORS và JSON Middleware
+// =======================
+// 🛠 Middleware
+// =======================
 app.use(cors());
 app.use(express.json());
+app.use(express.static(path.join(__dirname, 'public')));
 
-// 🔐 CONFIG
-const PORT = process.env.PORT || 5000;
-const SECRET_KEY = process.env.SECRET_KEY || "codebloom_secret";
-const MONGODB_URI = process.env.MONGODB_URI;
+// =======================
+// 🔗 Kết nối MongoDB
+// =======================
+// Đã thay thế chuỗi kết nối trực tiếp của bạn vào đây
+const mongoURI = "mongodb+srv://CamTu123:CamTu123@cluster0ctu.0fxpqmu.mongodb.net/codebloom?retryWrites=true&w=majority";
 
-// ❗ CHECK ENV
-if (!MONGODB_URI) {
-  console.error("❌ Thiếu MONGODB_URI trong file .env");
-  process.exit(1);
-}
-
-// 🔥 2. CONNECT MONGODB (Thêm cấu hình retry để tránh lỗi Render sleep)
-mongoose.connect(MONGODB_URI)
-  .then(() => console.log("✅ Kết nối MongoDB thành công!"))
+mongoose.connect(mongoURI)
+  .then(() => console.log("✅ Kết nối MongoDB Atlas thành công!"))
   .catch(err => {
-    console.error("❌ Lỗi kết nối MongoDB:", err.message);
+    console.error("❌ Lỗi kết nối MongoDB:");
+    console.error("- Thông báo lỗi:", err.message);
+    console.error("- Hướng dẫn: Kiểm tra lại Network Access (IP Whitelist) trên MongoDB Atlas.");
+    // Không đóng process ngay để bạn có thể đọc được log lỗi
   });
 
-/* ======================
-    📦 SCHEMAS & MODELS
-====================== */
-// Lưu ý: Mongoose mặc định sẽ tìm collection số nhiều (ví dụ: 'results', 'teachers')
-// Nếu database của bạn đặt tên khác, hãy thêm tham số thứ 3 vào model.
+// =======================
+// 📦 Model Result
+// =======================
+const resultSchema = new mongoose.Schema({
+  studentId: { type: String, required: true },
+  answers: { type: Array, default: [] },
+  correctCount: { type: Number, default: 0 },
+  wrongCount: { type: Number, default: 0 },
+  createdAt: { type: Date, default: Date.now }
+});
 
-const Result = mongoose.model("Result", new mongoose.Schema({
-  student_id: String,
-  question_id: String,
-  session_id: String,
-  correct: Boolean
-}));
+const Result = mongoose.model('Result', resultSchema);
 
-const Student = mongoose.model("Student", new mongoose.Schema({
-  student_id: String,
-  name: String
-}));
+// =======================
+// 📌 API Routes
+// =======================
 
-const Question = mongoose.model("Question", new mongoose.Schema({
-  question_id: String,
-  content: String,
-  level: String
-}));
-
-const Teacher = mongoose.model("Teacher", new mongoose.Schema({
-  teacher_id: String,
-  t_name: String,
-  t_password: String
-}));
-
-/* ======================
-    🔐 AUTH MIDDLEWARE
-====================== */
-function verifyToken(req, res, next) {
-  const authHeader = req.headers["authorization"];
-  if (!authHeader) {
-    return res.status(403).json({ success: false, message: "Không có token" });
-  }
-
-  const token = authHeader.split(" ")[1];
-  jwt.verify(token, SECRET_KEY, (err, decoded) => {
-    if (err) {
-      return res.status(401).json({ success: false, message: "Token không hợp lệ hoặc đã hết hạn" });
-    }
-    req.user = decoded;
-    next();
+// 1. Kiểm tra trạng thái server
+app.get('/api/test', (req, res) => {
+  res.json({ 
+    status: "OK",
+    message: "Server CodeBloom đang chạy trên MongoDB Atlas",
+    timestamp: new Date()
   });
-}
+});
 
-/* ======================
-    🔑 LOGIN TEACHER
-====================== */
-app.post("/teacher/login", async (req, res) => {
+// 2. API nộp bài
+app.post('/api/submit', async (req, res) => {
   try {
-    const { username, password } = req.body;
+    const { studentId, answers, correctCount, wrongCount } = req.body;
 
-    if (!username || !password) {
-        return res.status(400).json({ success: false, message: "Vui lòng nhập đủ tài khoản và mật khẩu" });
+    if (!studentId) {
+      return res.status(400).json({ error: "Thiếu studentId" });
     }
 
-    const teacher = await Teacher.findOne({ t_name: username });
-    if (!teacher) {
-      return res.status(401).json({ success: false, message: "Tài khoản không tồn tại" });
-    }
+    const result = new Result({
+      studentId,
+      answers,
+      correctCount,
+      wrongCount
+    });
 
-    const isMatch = await bcrypt.compare(password, teacher.t_password);
-    if (!isMatch) {
-      return res.status(401).json({ success: false, message: "Mật khẩu không chính xác" });
-    }
-
-    const token = jwt.sign(
-      { teacher_id: teacher.teacher_id },
-      SECRET_KEY,
-      { expiresIn: "12h" }
-    );
-
-    res.json({ success: true, token });
-
-  } catch (error) {
-    console.error("Login Error:", error);
-    res.status(500).json({ success: false, message: "Lỗi hệ thống khi đăng nhập" });
-  }
-});
-
-/* ======================
-    📊 APIs
-====================== */
-
-app.get("/results", verifyToken, async (req, res) => {
-  try {
-    const data = await Result.find();
-    res.json(data);
+    await result.save();
+    console.log(`📝 Đã lưu kết quả thành công cho: ${studentId}`);
+    
+    res.status(201).json({ message: "✅ Lưu kết quả thành công" });
   } catch (err) {
-    res.status(500).json({ message: "Lỗi khi lấy dữ liệu kết quả" });
+    console.error("Lỗi nộp bài:", err);
+    res.status(500).json({ error: "Lỗi hệ thống khi lưu bài làm" });
   }
 });
 
-app.get("/students", verifyToken, async (req, res) => {
+// 3. API lấy danh sách kết quả (Lấy lần cuối của mỗi học sinh)
+app.get('/api/results', async (req, res) => {
   try {
-    const data = await Student.find();
-    res.json(data);
+    const results = await Result.aggregate([
+      { $sort: { createdAt: -1 } },
+      {
+        $group: {
+          _id: "$studentId",
+          latestResult: { $first: "$$ROOT" }
+        }
+      },
+      { $replaceRoot: { newRoot: "$latestResult" } }
+    ]);
+    res.json(results);
   } catch (err) {
-    res.status(500).json({ message: "Lỗi khi lấy danh sách học sinh" });
+    res.status(500).json({ error: "Không thể lấy dữ liệu kết quả" });
   }
 });
 
-app.get("/questions", async (req, res) => {
-  try {
-    const data = await Question.find();
-    res.json(data);
-  } catch (err) {
-    res.status(500).json({ message: "Lỗi khi lấy danh sách câu hỏi" });
-  }
+// =======================
+// 📌 Route mặc định
+// =======================
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-/* ======================
-    🧪 TEST & START
-====================== */
-
-// Sửa lại route "/" trả về JSON để tránh lỗi "Invalid JSON" nếu frontend gọi trúng
-app.get("/", (req, res) => {
-  res.json({ status: "online", message: "🚀 CodeBloom API is running smoothly!" });
-});
+// =======================
+// 🚀 Khởi chạy Server
+// =======================
+const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => {
-  console.log(`🚀 Server đang chạy tại: http://localhost:${PORT}`);
+  console.log(`
+  -----------------------------------------
+  🚀 SERVER CODEBLOOM ĐÃ SẴN SÀNG
+  📡 Cổng: ${PORT}
+  🔗 Local: http://localhost:${PORT}
+  -----------------------------------------
+  `);
 });
