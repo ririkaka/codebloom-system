@@ -1,158 +1,124 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Đăng nhập Giáo viên - CodeBloom</title>
-
-  <style>
-    /* 1. Nền Gradient khớp với ảnh */
-    body {
-      margin: 0;
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background: linear-gradient(135deg, #00c6ff, #0072ff);
-      height: 100vh;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-    }
-
-    /* 2. Hộp đăng nhập với bo góc lớn (25px) */
-    .login-container {
-      background: #f8f9fa; /* Màu xám trắng rất nhạt */
-      padding: 50px 40px;
-      border-radius: 25px;
-      width: 100%;
-      max-width: 480px; /* Độ rộng hộp rộng rãi như trong ảnh */
-      box-shadow: 0 10px 30px rgba(0,0,0,0.15);
-      box-sizing: border-box;
-    }
-
-    /* 3. Tiêu đề với màu xanh thương hiệu */
-    .title {
-      text-align: center;
-      font-size: 32px;
-      font-weight: bold;
-      color: #1877f2;
-      margin-bottom: 35px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 15px;
-    }
-
-    label {
-      display: block;
-      margin-bottom: 10px;
-      font-weight: 600;
-      color: #333;
-      font-size: 16px;
-    }
-
-    /* 4. Ô nhập liệu căn chỉnh chuẩn box-sizing */
-    input {
-      width: 100%;
-      padding: 14px 15px;
-      border-radius: 8px;
-      border: 1px solid #ddd;
-      margin-bottom: 25px;
-      font-size: 16px;
-      box-sizing: border-box; /* Đảm bảo padding không làm tăng chiều rộng input */
-      transition: border-color 0.2s;
-    }
-
-    input:focus {
-      outline: none;
-      border-color: #1877f2;
-      background-color: #fff;
-    }
-
-    /* 5. Nút bấm xanh đậm bo tròn */
-    button {
-      width: 100%;
-      padding: 15px;
-      border: none;
-      border-radius: 12px;
-      background: #1877f2; /* Màu xanh đặc trưng như hình */
-      color: white;
-      font-size: 18px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.2s;
-      margin-top: 10px;
-    }
-
-    button:hover {
-      background-color: #166fe5;
-      transform: translateY(-1px);
-    }
-
-    button:active {
-      transform: translateY(0);
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Đăng nhập Giáo viên - CodeBloom</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #007bff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .login-card {
+            background: white;
+            padding: 2rem;
+            border-radius: 15px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+        }
+        h2 { color: #007bff; margin-bottom: 1.5rem; }
+        .input-group { text-align: left; margin-bottom: 1rem; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; color: #333; }
+        input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            box-sizing: border-box;
+            font-size: 16px;
+        }
+        button {
+            width: 100%;
+            padding: 12px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 18px;
+            cursor: pointer;
+            transition: background 0.3s;
+            margin-top: 10px;
+        }
+        button:hover { background-color: #0056b3; }
+        #message { margin-top: 15px; font-size: 14px; min-height: 20px; }
+        .error { color: #dc3545; }
+        .success { color: #28a745; }
+    </style>
 </head>
-
 <body>
 
-<div class="login-container">
-  <div class="title"><span>👩‍🏫</span> Đăng nhập Giáo viên</div>
-
-  <label for="username">Tên đăng nhập</label>
-  <input type="text" id="username" placeholder="Nhập tên đăng nhập">
-
-  <label for="password">Mật khẩu</label>
-  <input type="password" id="password" placeholder="Nhập mật khẩu">
-
-  <button onclick="login()" id="loginBtn">Đăng nhập</button>
+<div class="login-card">
+    <h2>👩‍🏫 Đăng nhập Giáo viên</h2>
+    <div class="input-group">
+        <label>Tên đăng nhập</label>
+        <input type="text" id="username" placeholder="Ví dụ: ddd">
+    </div>
+    <div class="input-group">
+        <label>Mật khẩu</label>
+        <input type="password" id="password" placeholder="Mật khẩu của bạn">
+    </div>
+    <button onclick="handleLogin()">Đăng nhập</button>
+    <div id="message"></div>
 </div>
 
 <script>
-const API_BASE = "https://codebloom-system.onrender.com";
+    // Tự động nhận diện môi trường để gọi API
+    const isLocal = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
+    const API_BASE = isLocal ? "http://localhost:5000" : "https://codebloom-system.onrender.com";
 
-async function login() {
-  const username = document.getElementById("username").value.trim();
-  const password = document.getElementById("password").value.trim();
-  const loginBtn = document.getElementById("loginBtn");
+    async function handleLogin() {
+        const user = document.getElementById('username').value;
+        const pass = document.getElementById('password').value;
+        const msgDiv = document.getElementById('message');
 
-  if (!username || !password) {
-    alert("⚠️ Vui lòng nhập đầy đủ tên đăng nhập và mật khẩu");
-    return;
-  }
+        if (!user || !pass) {
+            msgDiv.innerHTML = '<span class="error">Vui lòng nhập đủ thông tin!</span>';
+            return;
+        }
 
-  // Khóa nút để tránh nhấn nhiều lần
-  loginBtn.disabled = true;
-  loginBtn.innerText = "Đang xử lý...";
+        msgDiv.innerHTML = "Đang kiểm tra...";
 
-  try {
-    const res = await fetch(`${API_BASE}/teacher/login`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username, password })
-    });
+        try {
+            // QUAN TRỌNG: Gọi tới /api/teacher/login để server không trả về trang HTML lỗi
+            const response = await fetch(`${API_BASE}/api/teacher/login`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username: user, password: pass })
+            });
 
-    const data = await res.json();
+            // Kiểm tra định dạng phản hồi
+            const contentType = response.headers.get("content-type");
+            if (!contentType || !contentType.includes("application/json")) {
+                throw new Error("Server trả về sai định dạng (HTML thay vì JSON).");
+            }
 
-    if (!res.ok) {
-      alert("❌ " + (data.message || "Tên đăng nhập hoặc mật khẩu không đúng"));
-      return;
+            const result = await response.json();
+
+            if (result.success) {
+                msgDiv.innerHTML = '<span class="success">Đăng nhập thành công!</span>';
+                localStorage.setItem("teacher_token", result.token);
+                // Chuyển hướng sang trang admin sau 1 giây
+                setTimeout(() => { window.location.href = "admin.html"; }, 1000);
+            } else {
+                msgDiv.innerHTML = `<span class="error">${result.message || 'Sai tài khoản!'}</span>`;
+            }
+        } catch (error) {
+            console.error("Lỗi:", error);
+            msgDiv.innerHTML = `<span class="error">Không kết nối được server! (Render có thể đang sleep, thử lại sau 30s)</span>`;
+        }
     }
 
-    // Lưu token đăng nhập
-    localStorage.setItem("teacher_token", data.token);
-
-    alert("✅ Đăng nhập thành công!");
-    // Chuyển hướng đến trang quản trị
-    window.location.href = "admin.html"; 
-
-  } catch (err) {
-    console.error("Lỗi:", err);
-    alert(`🚫 Lỗi kết nối server! Vui lòng kiểm tra lại mạng hoặc đợi server Render khởi động (khoảng 30s).`);
-  } finally {
-    loginBtn.disabled = false;
-    loginBtn.innerText = "Đăng nhập";
-  }
-}
+    // Cho phép nhấn Enter để đăng nhập
+    document.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') handleLogin();
+    });
 </script>
 
 </body>
