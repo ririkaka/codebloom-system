@@ -16,22 +16,21 @@ app.use(express.json());
 app.use(cors());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// --- 2. CẤU HÌNH BIẾN MÔI TRƯỜNG ---
-// Ưu tiên dùng biến môi trường từ Render để bảo mật
+// --- 2. CẤU HÌNH ---
 const PORT = process.env.PORT || 10000;
 const JWT_SECRET = process.env.JWT_SECRET || "codebloom_secret_key";
 const mongoURI = process.env.MONGODB_URI || "mongodb+srv://CamTu123:CamTu123@cluster0ctu.0fxpqmu.mongodb.net/codebloom?retryWrites=true&w=majority";
 
-// Tạo thư mục tạm để biên dịch (Sử dụng /tmp trên Render để có quyền ghi)
+// Thư mục tạm để biên dịch (Render dùng /tmp, local dùng ./temp)
 const tempDir = process.env.NODE_ENV === 'production' ? '/tmp' : path.join(__dirname, 'temp');
 if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir);
 
 // --- 3. KẾT NỐI DATABASE ---
 mongoose.connect(mongoURI)
     .then(() => console.log('✅ Connected to MongoDB'))
-    .catch(err => console.error('❌ MongoDB Connection Error:', err.message));
+    .catch(err => console.error('❌ MongoDB Error:', err.message));
 
-// --- 4. ĐỊNH NGHĨA MODELS ---
+// --- 4. MODELS ---
 const Teacher = mongoose.model('Teacher', new mongoose.Schema({
     teacher_id: { type: String, required: true, unique: true },
     t_name: String,
@@ -60,15 +59,14 @@ const Result = mongoose.model('Result', new mongoose.Schema({
 
 // --- 5. API ENDPOINTS ---
 
-// Đăng nhập Giáo viên
 app.post('/api/teacher-login', async (req, res) => {
     try {
         const { teacher_id, password } = req.body;
         const teacher = await Teacher.findOne({ teacher_id: teacher_id.trim() });
-        if (!teacher) return res.status(401).json({ error: "Mã giáo viên không tồn tại" });
+        if (!teacher) return res.status(401).json({ error: "Sai mã giáo viên" });
 
         const isMatch = await bcrypt.compare(password, teacher.t_password);
-        if (!isMatch) return res.status(401).json({ error: "Mật khẩu không chính xác" });
+        if (!isMatch) return res.status(401).json({ error: "Sai mật khẩu" });
 
         const token = jwt.sign({ id: teacher._id, role: 'teacher' }, JWT_SECRET, { expiresIn: '24h' });
         res.json({ message: "Success", token, name: teacher.t_name });
@@ -77,22 +75,18 @@ app.post('/api/teacher-login', async (req, res) => {
     }
 });
 
-// Chấm bài tự động (Đã sửa để tương thích Linux/Render)
 app.post('/api/submit', async (req, res) => {
     const { student_id, question_id, session_id, code } = req.body;
     const question = await Question.findOne({ question_id });
-    if (!question) return res.status(404).json({ error: "Không tìm thấy câu hỏi" });
+    if (!question) return res.status(404).json({ error: "Không thấy câu hỏi" });
 
     const id = uuidv4();
     const filePath = path.join(tempDir, `${id}.c`);
-    
-    // TRÊN LINUX (RENDER) KHÔNG DÙNG ĐUÔI .EXE
     const isWindows = process.platform === "win32";
     const exePath = isWindows ? path.join(tempDir, `${id}.exe`) : path.join(tempDir, id);
 
     fs.writeFileSync(filePath, code);
 
-    // Lệnh biên dịch
     exec(`gcc "${filePath}" -o "${exePath}"`, async (err) => {
         if (err) {
             if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
@@ -103,29 +97,18 @@ app.post('/api/submit', async (req, res) => {
         for (let tc of question.test_cases) {
             try {
                 const output = await new Promise((resolve, reject) => {
-                    // Chạy file thực thi (Thêm ./ trên Linux)
                     const runCmd = isWindows ? `"${exePath}"` : `./${id}`;
                     const child = exec(runCmd, { cwd: tempDir }, (e, stdout) => e ? reject(e) : resolve(stdout.trim()));
-                    
-                    if (tc.input) { 
-                        child.stdin.write(tc.input + "\n"); 
-                        child.stdin.end(); 
-                    }
+                    if (tc.input) { child.stdin.write(tc.input + "\n"); child.stdin.end(); }
                 });
                 if (output !== tc.expected.trim()) { passed = false; break; }
             } catch { passed = false; break; }
         }
 
-        // Lưu kết quả vào DB
-        await Result.create({ 
-            student_id, question_id, session_id, code, 
-            status: passed ? "Đúng" : "Sai" 
-        });
+        await Result.create({ student_id, question_id, session_id, code, status: passed ? "Đúng" : "Sai" });
 
-        // Dọn dẹp file tạm
         if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
         if (fs.existsSync(exePath)) fs.unlinkSync(exePath);
-
         res.json({ isCorrect: passed });
     });
 });
