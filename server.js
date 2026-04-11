@@ -13,7 +13,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 // 1. KẾT NỐI DATABASE
 // CHÚ Ý: Thay 'local' bằng tên database hiển thị trong Atlas của bạn nếu cần
-const mongoURI = "mongodb+srv://CamTu123:CamTu123@cluster0ctu.0fxpqmu.mongodb.net/local?retryWrites=true&w=majority";
+const mongoURI = "mongodb+srv://CamTu123:CamTu123@cluster0ctu.0fxpqmu.mongodb.net/CodeBloomDB?retryWrites=true&w=majority";
 
 mongoose.connect(mongoURI) // Đã loại bỏ các options không hỗ trợ ở bản mới
     .then(() => console.log('✅ MongoDB Connected: Database Loaded!'))
