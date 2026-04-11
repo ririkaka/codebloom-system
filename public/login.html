@@ -1,64 +1,95 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Học sinh Đăng nhập - CodeBloom</title>
-    <style>
-        body { font-family: 'Segoe UI', sans-serif; background: #4e73df; height: 100vh; display: flex; justify-content: center; align-items: center; margin: 0; }
-        .card { background: white; padding: 30px; border-radius: 12px; width: 350px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
-        h2 { text-align: center; color: #333; margin-bottom: 20px; }
-        input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; }
-        button { width: 100%; padding: 12px; background: #4e73df; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.3s; }
-        button:hover { background: #2e59d9; }
-        #error-msg { color: #e74a3b; text-align: center; font-size: 14px; margin-top: 10px; display: none; }
-    </style>
+  <meta charset="UTF-8" />
+  <title>Đăng nhập Học sinh - CodeBloom</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f1f1f1;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+    .login-box {
+      background: white;
+      padding: 30px;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      width: 350px;
+    }
+    h2 {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    input {
+      width: 100%;
+      padding: 12px;
+      margin-bottom: 15px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+    }
+    button {
+      width: 100%;
+      padding: 12px;
+      background-color: #007bff;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #0056b3;
+    }
+  </style>
 </head>
 <body>
 
-<div class="card">
-    <h2>🎓 Học sinh Đăng nhập</h2>
-    <form id="studentLoginForm">
-        <input type="text" id="student_id" placeholder="Mã số học sinh (VD: 002)" required>
-        <input type="password" id="password" placeholder="Mật khẩu" required>
-        <button type="submit">ĐĂNG NHẬP</button>
-    </form>
-    <p id="error-msg"></p>
+<div class="login-box">
+  <h2>🎓 Đăng nhập Học sinh</h2>
+  <form id="loginForm">
+    <input type="text" id="student_id" placeholder="Nhập mã học sinh" required />
+    <button type="submit">Đăng nhập</button>
+  </form>
 </div>
 
 <script>
-    document.getElementById('studentLoginForm').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const error = document.getElementById('error-msg');
-        error.style.display = 'none';
+  const API_BASE = "https://codebloom-system.onrender.com";
 
-        const student_id = document.getElementById('student_id').value.trim();
-        const password = document.getElementById('password').value;
+  document.getElementById("loginForm").onsubmit = async (e) => {
+    e.preventDefault();
+    const student_id = document.getElementById("student_id").value.trim();
 
-        try {
-            // Sử dụng đường dẫn tương đối để chạy tốt trên cả localhost:10000 và Render
-            const response = await fetch('/api/login', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ student_id, password })
-            });
+    if (!student_id) {
+      alert("⚠️ Vui lòng nhập mã học sinh");
+      return;
+    }
 
-            const data = await response.json();
+    try {
+      const res = await fetch(`${API_BASE}/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ student_id })
+      });
 
-            if (response.ok) {
-                // Lưu thông tin học sinh vào máy
-                localStorage.setItem('student_name', data.name);
-                localStorage.setItem('student_id', data.student_id);
-                window.location.href = 'index.html'; 
-            } else {
-                error.innerText = data.message;
-                error.style.display = 'block';
-            }
-        } catch (err) {
-            error.innerText = "Lỗi kết nối server! Hãy thử lại.";
-            error.style.display = 'block';
-        }
-    });
+      const data = await res.json();
+      if (res.ok && data.token) {
+  localStorage.setItem("student_token", data.token);
+  localStorage.setItem("student_id", student_id);
+  localStorage.setItem("session_id", data.session_id); // lưu luôn phiên làm bài
+  window.location.href = "index.html";
+}
+ else {
+        alert("❌ Đăng nhập thất bại: " + (data.error || "Không xác định"));
+      }
+    } catch (err) {
+      alert("❌ Lỗi kết nối đến máy chủ");
+      console.error(err);
+    }
+  };
 </script>
+
 </body>
 </html>

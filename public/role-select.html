@@ -2,84 +2,75 @@
 <html lang="vi">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Chọn vai trò - CodeBloom</title>
   <style>
-    /* 1. Căn giữa toàn bộ nội dung */
     body {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background-color: #f0f2f5;
-      margin: 0;
-      height: 100vh; /* Chiều cao tối đa màn hình */
+      font-family: Arial, sans-serif;
+      background: #f0f2f5;
       display: flex;
-      justify-content: center; /* Căn giữa ngang */
-      align-items: center;     /* Căn giữa dọc */
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
     }
-
-    /* 2. Thiết kế hộp chứa (Box) */
     .box {
       background: white;
-      padding: 40px;
-      border-radius: 16px;
-      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+      padding: 30px 40px;
+      border-radius: 12px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
       text-align: center;
-      width: 100%;
-      max-width: 360px; /* Độ rộng vừa vặn như trong ảnh */
+      max-width: 600px;
     }
-
     h2 {
-      margin-top: 0;
-      margin-bottom: 25px;
+      margin-bottom: 20px;
       font-size: 24px;
-      color: #1c1e21;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 10px;
     }
-
-    /* 3. Thiết kế nút bấm chung */
     .role-btn {
       display: flex;
       align-items: center;
-      justify-content: center; /* Chữ và icon nằm giữa nút */
+      justify-content: center;
       width: 100%;
-      padding: 14px;
+      padding: 15px;
       margin: 12px 0;
-      font-size: 17px;
-      font-weight: 600;
+      font-size: 18px;
       border: none;
       border-radius: 8px;
       cursor: pointer;
-      transition: opacity 0.2s, transform 0.1s;
+      transition: background 0.3s;
       gap: 12px;
     }
-
-    .role-btn:active {
-      transform: scale(0.98); /* Hiệu ứng nhấn nút */
-    }
-
-    /* Nút Học sinh (Màu xanh dương) */
     .student {
       background-color: #007bff;
       color: white;
     }
     .student:hover {
-      background-color: #0069d9;
+      background-color: #0056b3;
     }
-
-    /* Nút Giáo viên (Màu xanh lá) */
     .teacher {
       background-color: #28a745;
       color: white;
     }
     .teacher:hover {
-      background-color: #218838;
+      background-color: #1e7e34;
     }
-
-    /* Icon giả lập (Emoji) */
-    .icon {
-      font-size: 20px;
+    img.icon {
+      width: 40px;
+      height: 40px;
+      object-fit: cover;
+      border-radius: 8px;
+    }
+    .info-images {
+      display: flex;
+      justify-content: center;
+      gap: 15px;
+      margin-top: 25px;
+      flex-wrap: wrap;
+    }
+    .info-images img {
+      width: 90px;
+      height: 90px;
+      border-radius: 10px;
+      object-fit: cover;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
     }
   </style>
 </head>
@@ -87,15 +78,11 @@
 
   <div class="box">
     <h2>🎓 Bạn là ai?</h2>
-    
-    <button class="role-btn student" onclick="location.href='login.html'">
-      <span class="icon">👨‍🎓</span>
-      Học sinh / Sinh viên
+    <button class="role-btn student" onclick="location.href='login.html'">     
+      👩‍🎓 Học sinh / Sinh viên
     </button>
-
-    <button class="role-btn teacher" onclick="location.href='teacher-login.html'">
-      <span class="icon">👩‍🏫</span>
-      Giáo viên
+    <button class="role-btn teacher" onclick="location.href='teacher-login.html'">     
+      👩‍🏫 Giáo viên
     </button>
   </div>
 

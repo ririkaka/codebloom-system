@@ -1,90 +1,94 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
-const bcrypt = require('bcrypt');
 const path = require('path');
-require('dotenv').config(); 
+const bcrypt = require('bcryptjs'); // Đảm bảo đã chạy: npm install bcryptjs
 
 const app = express();
 
-// Middleware
-app.use(express.json());
+// --- 1. Cấu hình Middleware ---
 app.use(cors());
+app.use(express.json());
+// Phục vụ các file trong folder public (admin.html, teacher-login.html, admin.js...)
 app.use(express.static(path.join(__dirname, 'public')));
 
-// 1. KẾT NỐI DATABASE
-// Sử dụng chuỗi .env bạn đã cung cấp (đã đổi sang database codebloom để tránh lỗi Unauthorized)
-const mongoURI = process.env.MONGODB_URI || "mongodb+srv://CamTu123:CamTu123@cluster0ctu.0fxpqmu.mongodb.net/codebloom?retryWrites=true&w=majority";
-
+// --- 2. Kết nối MongoDB Atlas ---
+const mongoURI = "mongodb+srv://CamTu123:CamTu123@cluster0ctu.0fxpqmu.mongodb.net/codebloom?retryWrites=true&w=majority";
 mongoose.connect(mongoURI)
-    .then(() => console.log('✅ MongoDB Connected: codebloom database'))
-    .catch(err => {
-        console.error('❌ MongoDB Connection Error:', err.message);
-    });
+    .then(() => console.log("✅ MongoDB Connected: CodeBloom Database"))
+    .catch(err => console.error("❌ Lỗi kết nối MongoDB:", err));
 
-// 2. ĐỊNH NGHĨA SCHEMA & MODEL (Khớp với Atlas)
-const studentSchema = new mongoose.Schema({
-    student_id: { type: String, required: true },
-    name: { type: String, required: true },
-    password: { type: String, required: true }
-}, { collection: 'students' });
+// --- 3. Định nghĩa Models (Khớp với dữ liệu thực tế của bạn) ---
+// Model Giáo viên (Dùng để kiểm tra mật khẩu đã hash $2b$12$...)
+const Teacher = mongoose.model('Teacher', new mongoose.Schema({
+    t_name: String,
+    t_password: String
+}, { collection: 'teachers' }));
 
-const resultSchema = new mongoose.Schema({
+// Model Học sinh
+const Student = mongoose.model('Student', new mongoose.Schema({
     student_id: String,
-    score: Number,
-    date: { type: Date, default: Date.now }
-}, { collection: 'results' });
+    name: String
+}, { collection: 'students' }));
 
-const Student = mongoose.model('Student', studentSchema);
-const Result = mongoose.model('Result', resultSchema);
+// Model Kết quả bài làm
+const Result = mongoose.model('Result', new mongoose.Schema({
+    studentId: String,
+    question_id: String,
+    correct: Boolean,
+    session_id: String
+}, { collection: 'results', timestamps: true }));
 
-// 3. API ĐĂNG NHẬP HỌC SINH
-app.post('/api/login', async (req, res) => {
-    const { student_id, password } = req.body;
-    try {
-        // .trim() để tránh lỗi thừa dấu cách khi nhập
-        const student = await Student.findOne({ student_id: student_id.trim() });
-        
-        if (!student) {
-            return res.status(401).json({ message: "Mã SV không tồn tại" });
-        }
-
-        // So sánh mật khẩu bằng Bcrypt (khớp với mật khẩu đã mã hóa trong database)
-        const isMatch = await bcrypt.compare(password, student.password);
-        if (!isMatch) {
-            return res.status(401).json({ message: "Sai mật khẩu" });
-        }
-
-        res.json({ message: "Success", name: student.name, student_id: student.student_id });
-    } catch (err) {
-        res.status(500).json({ message: "Lỗi hệ thống đăng nhập" });
-    }
-});
-
-// 4. API ĐĂNG NHẬP GIÁO VIÊN
-app.post('/api/teacher-login', (req, res) => {
+// --- 4. API Đăng nhập giáo viên (Xử lý Bcrypt) ---
+app.post('/api/teacher/login', async (req, res) => {
     const { username, password } = req.body;
-    // Tài khoản admin mặc định: ddd / 123
-    if (username === 'ddd' && password === '123') {
-        res.json({ message: "Success", token: "active_admin_session" });
-    } else {
-        res.status(401).json({ message: "Tài khoản giáo viên không đúng" });
-    }
-});
-
-// 5. API DÀNH CHO TRANG ADMIN
-app.get('/api/admin/students', async (req, res) => {
     try {
-        const students = await Student.find({}, { password: 0 }); // Không gửi password về
-        res.json(students);
+        const teacher = await Teacher.findOne({ t_name: username });
+        if (!teacher) {
+            return res.status(401).json({ success: false, message: "Tài khoản không tồn tại!" });
+        }
+
+        // So sánh mật khẩu nhập vào với mật khẩu hash trong DB
+        const isMatch = await bcrypt.compare(password, teacher.t_password);
+        if (isMatch) {
+            res.json({ success: true, token: "valid" });
+        } else {
+            res.status(401).json({ success: false, message: "Mật khẩu không chính xác!" });
+        }
     } catch (err) {
-        res.status(500).json({ message: "Lỗi truy xuất dữ liệu" });
+        res.status(500).json({ success: false, message: "Lỗi hệ thống server!" });
     }
 });
 
-// 6. KHỞI CHẠY SERVER
-// Ưu tiên cổng 10000 của Render
-const PORT = process.env.PORT || 10000; 
+// --- 5. API Lấy dữ liệu cho Dashboard Admin ---
+
+// Lấy danh sách học sinh
+app.get('/api/students', async (req, res) => {
+    try {
+        const data = await Student.find();
+        res.json(data);
+    } catch (err) { res.status(500).json([]); }
+});
+
+// Lấy toàn bộ kết quả nộp bài
+app.get('/api/results', async (req, res) => {
+    try {
+        const data = await Result.find().sort({ createdAt: -1 });
+        res.json(data);
+    } catch (err) { res.status(500).json([]); }
+});
+
+// --- 6. Điều hướng Frontend ---
+// Luôn trả về trang login nếu người dùng vào địa chỉ không tồn tại
+app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public/teacher-login.html'));
+});
+
+// --- 7. Khởi chạy Server ---
+const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
+    console.log(`----------------------------------------`);
     console.log(`🚀 Server đang chạy tại: http://localhost:${PORT}`);
+    console.log(`📂 Folder giao diện: /public`);
+    console.log(`----------------------------------------`);
 });
