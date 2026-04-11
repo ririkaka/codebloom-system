@@ -20,7 +20,7 @@
             border-radius: 15px;
             box-shadow: 0 10px 25px rgba(0,0,0,0.2);
             width: 100%;
-            max-width: 400px;
+            max-width: 360px;
             text-align: center;
         }
         h2 { color: #007bff; margin-bottom: 1.5rem; }
@@ -69,13 +69,9 @@
 </div>
 
 <script>
-    // Tự động nhận diện môi trường để gọi API
-    const isLocal = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
-    const API_BASE = isLocal ? "http://localhost:5000" : "https://codebloom-system.onrender.com";
-
     async function handleLogin() {
-        const user = document.getElementById('username').value;
-        const pass = document.getElementById('password').value;
+        const user = document.getElementById('username').value.trim();
+        const pass = document.getElementById('password').value.trim();
         const msgDiv = document.getElementById('message');
 
         if (!user || !pass) {
@@ -83,35 +79,34 @@
             return;
         }
 
-        msgDiv.innerHTML = "Đang kiểm tra...";
+        msgDiv.innerHTML = "Đang kết nối...";
 
         try {
-            // QUAN TRỌNG: Gọi tới /api/teacher/login để server không trả về trang HTML lỗi
-            const response = await fetch(`${API_BASE}/api/teacher/login`, {
+            // Sử dụng đường dẫn tương đối để tự động khớp với host đang chạy (localhost hoặc Render)
+            const response = await fetch('/api/teacher/login', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ username: user, password: pass })
             });
 
-            // Kiểm tra định dạng phản hồi
-            const contentType = response.headers.get("content-type");
-            if (!contentType || !contentType.includes("application/json")) {
-                throw new Error("Server trả về sai định dạng (HTML thay vì JSON).");
-            }
-
             const result = await response.json();
 
             if (result.success) {
-                msgDiv.innerHTML = '<span class="success">Đăng nhập thành công!</span>';
-                localStorage.setItem("teacher_token", result.token);
-                // Chuyển hướng sang trang admin sau 1 giây
-                setTimeout(() => { window.location.href = "admin.html"; }, 1000);
+                msgDiv.innerHTML = '<span class="success">Đăng nhập thành công! Đang chuyển hướng...</span>';
+                
+                // Lưu token vào localStorage để các trang sau có thể kiểm tra
+                localStorage.setItem("teacher_token", "valid");
+
+                // Chuyển sang trang admin sau 1 giây
+                setTimeout(() => {
+                    window.location.href = "admin.html";
+                }, 1000);
             } else {
-                msgDiv.innerHTML = `<span class="error">${result.message || 'Sai tài khoản!'}</span>`;
+                msgDiv.innerHTML = `<span class="error">${result.message || 'Sai tài khoản hoặc mật khẩu!'}</span>`;
             }
         } catch (error) {
             console.error("Lỗi:", error);
-            msgDiv.innerHTML = `<span class="error">Không kết nối được server! (Render có thể đang sleep, thử lại sau 30s)</span>`;
+            msgDiv.innerHTML = `<span class="error">Lỗi kết nối server! Kiểm tra xem server.js đã chạy chưa.</span>`;
         }
     }
 

@@ -3,167 +3,76 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bảng kết quả học sinh - CodeBloom Admin</title>
+    <title>Bảng điều khiển Giáo viên - CodeBloom</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f8f9fa; margin: 0; padding: 20px; }
-        .container { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); max-width: 1200px; margin: auto; }
-        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #eee; padding-bottom: 15px; margin-bottom: 20px; }
-        h2 { color: #333; margin: 0; display: flex; align-items: center; gap: 10px; }
-        .btn-logout { background: #dc3545; color: white; border: none; padding: 8px 18px; border-radius: 6px; cursor: pointer; font-weight: bold; }
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-        th, td { border: 1px solid #dee2e6; padding: 12px; text-align: center; }
-        th { background-color: #f1f3f5; color: #495057; font-weight: 600; }
-        .correct { color: #28a745; font-size: 18px; }
-        .wrong { color: #dc3545; font-size: 18px; font-weight: bold; }
-        select { padding: 5px; border-radius: 4px; border: 1px solid #ccc; cursor: pointer; }
-        .loading { text-align: center; padding: 20px; font-style: italic; color: #666; }
+        :root { --primary: #007bff; --success: #28a745; --danger: #dc3545; --bg: #f4f7f6; }
+        body { font-family: 'Segoe UI', sans-serif; background-color: var(--bg); margin: 0; padding: 20px; }
+        .container { max-width: 1200px; margin: auto; background: white; padding: 25px; border-radius: 15px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
+        
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; border-bottom: 2px solid #eee; padding-bottom: 15px; }
+        h2 { color: #333; margin: 0; font-size: 24px; }
+        .btn-logout { background: var(--danger); color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: bold; transition: 0.3s; }
+        .btn-logout:hover { background: #c82333; transform: translateY(-2px); }
+
+        /* Table Styles */
+        .table-wrapper { overflow-x: auto; margin-top: 20px; border: 1px solid #dee2e6; border-radius: 8px; }
+        table { width: 100%; border-collapse: collapse; background: white; min-width: 1000px; }
+        th { background-color: #f8f9fa; color: #444; padding: 15px; border: 1px solid #dee2e6; text-align: center; sticky: top; }
+        td { padding: 12px; border: 1px solid #dee2e6; text-align: center; }
+        tr:nth-child(even) { background-color: #fafafa; }
+        tr:hover { background-color: #f1f7ff; }
+
+        /* Evaluation Table Specific */
+        .eval-scroll { max-height: 350px; overflow-y: auto; border: 1px solid #dee2e6; border-radius: 8px; }
+        .status-ok { color: var(--success); font-weight: bold; font-size: 18px; }
+        .status-no { color: var(--danger); font-weight: bold; font-size: 18px; }
+        select { padding: 6px; border-radius: 5px; border: 1px solid var(--primary); outline: none; background: white; cursor: pointer; }
+
+        .section-title { margin-top: 40px; margin-bottom: 15px; color: var(--primary); display: flex; align-items: center; gap: 10px; }
     </style>
 </head>
 <body>
 
 <div class="container">
     <div class="header">
-        <h2>📊 KẾT QUẢ HỌC SINH (Phiên mới nhất)</h2>
-        <button class="btn-logout" onclick="logout()">Đăng xuất</button>
+        <h2><i class="fas fa-user-shield"></i> HỆ THỐNG QUẢN TRỊ CODEBLOOM</h2>
+        <button class="btn-logout" onclick="logout()"><i class="fas fa-sign-out-alt"></i> Đăng xuất</button>
     </div>
 
-    <div id="loading" class="loading">Đang tải dữ liệu từ server...</div>
+    <h3 class="section-title"><i class="fas fa-table"></i> KẾT QUẢ HỌC SINH CHI TIẾT</h3>
+    <div class="table-wrapper">
+        <table id="main-table">
+            <thead>
+                <tr id="header-row">
+                    <th>Mã SV</th>
+                    <th>Họ tên</th>
+                    <th>Đúng</th>
+                    <th>Sai</th>
+                    <th>Phiên bài làm</th>
+                </tr>
+            </thead>
+            <tbody id="data-body">
+                </tbody>
+        </table>
+    </div>
 
-    <table id="adminTable" style="display: none;">
-        <thead>
-            <tr id="tableHead">
-                <th>Mã SV</th>
-                <th>Họ tên</th>
-                <th>Đúng</th>
-                <th>Sai</th>
-                <th>Phiên</th>
-            </tr>
-        </thead>
-        <tbody id="tableBody">
-            </tbody>
-    </table>
+    <h3 class="section-title"><i class="fas fa-chart-line"></i> ĐÁNH GIÁ MỨC ĐỘ NHẬN THỨC (Phiên cuối)</h3>
+    <div class="eval-scroll">
+        <table>
+            <thead>
+                <tr style="background: #e9ecef;">
+                    <th style="width: 30%;">Mức độ nhận thức</th>
+                    <th style="width: 20%;">Số lượng HSSV</th>
+                    <th style="width: 50%;">Danh sách HSSV đạt</th>
+                </tr>
+            </thead>
+            <tbody id="evaluation-body">
+                </tbody>
+        </table>
+    </div>
 </div>
 
-<script>
-    // 1. CẤU HÌNH URL: Tự động nhận diện Local hay Render
-    const isLocal = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
-    const API_BASE = isLocal ? "http://localhost:5000" : "https://codebloom-system.onrender.com";
-
-    // Kiểm tra quyền truy cập
-    if (!localStorage.getItem("teacher_token")) {
-        window.location.href = "teacher-login.html";
-    }
-
-    let studentMap = {};
-    let questionIds = [];
-    let allDataGrouped = {};
-
-    async function fetchData() {
-        try {
-            // Gọi đồng thời cả 2 API để tối ưu tốc độ
-            const [resResults, resStudents] = await Promise.all([
-                fetch(`${API_BASE}/api/results`),
-                fetch(`${API_BASE}/api/students`)
-            ]);
-
-            // Kiểm tra nếu Server trả về lỗi hoặc file HTML (Unexpected token <)
-            if (!resResults.ok || !resStudents.ok) throw new Error("Server trả về lỗi!");
-
-            const results = await resResults.json();
-            const students = await resStudents.json();
-
-            // Lưu tên học sinh theo ID
-            students.forEach(s => studentMap[s.student_id] = s.name);
-
-            // Lấy danh sách các Mã câu hỏi (Q001, Q002...) để tạo cột
-            questionIds = [...new Set(results.map(r => r.question_id))].sort();
-
-            // Nhóm dữ liệu: [Mã SV] -> [Phiên] -> [Danh sách câu trả lời]
-            allDataGrouped = {};
-            results.forEach(r => {
-                const sId = r.studentId || r.student_id; // Linh hoạt theo model
-                if (!allDataGrouped[sId]) allDataGrouped[sId] = {};
-                if (!allDataGrouped[sId][r.session_id]) allDataGrouped[sId][r.session_id] = [];
-                allDataGrouped[sId][r.session_id].push(r);
-            });
-
-            renderHeader();
-            renderInitialTable();
-
-            document.getElementById('loading').style.display = 'none';
-            document.getElementById('adminTable').style.display = 'table';
-
-        } catch (err) {
-            console.error(err);
-            document.getElementById('loading').innerHTML = 
-                `<b style="color:red">❌ Lỗi kết nối!</b><br>Render có thể đang sleep. Hãy đợi 30s rồi nhấn F5.`;
-        }
-    }
-
-    function renderHeader() {
-        const head = document.getElementById('tableHead');
-        head.innerHTML = `
-            <th>Mã SV</th>
-            <th>Họ tên</th>
-            ${questionIds.map(q => `<th>Câu ${q}</th>`).join('')}
-            <th>Đúng</th>
-            <th>Sai</th>
-            <th>Phiên</th>
-        `;
-    }
-
-    function renderInitialTable() {
-        const body = document.getElementById('tableBody');
-        body.innerHTML = "";
-
-        Object.entries(allDataGrouped).forEach(([sId, sessions]) => {
-            const sessionList = Object.keys(sessions).sort().reverse(); // Phiên mới nhất lên đầu
-            const row = document.createElement('tr');
-            row.id = `row-${sId}`;
-            body.appendChild(row);
-            
-            // Mặc định hiển thị phiên mới nhất cho mỗi học sinh
-            updateRow(sId, sessionList[0]);
-        });
-    }
-
-    function updateRow(sId, currentSess) {
-        const row = document.getElementById(`row-${sId}`);
-        const sessionData = allDataGrouped[sId][currentSess];
-        const sessionList = Object.keys(allDataGrouped[sId]).sort().reverse();
-
-        // Tạo bản đồ kết quả cho phiên này
-        const ansMap = {};
-        sessionData.forEach(d => ansMap[d.question_id] = d.correct);
-
-        const correctCount = sessionData.filter(d => d.correct).length;
-        const wrongCount = sessionData.filter(d => !d.correct).length;
-
-        row.innerHTML = `
-            <td>${sId}</td>
-            <td>${studentMap[sId] || "Chưa rõ"}</td>
-            ${questionIds.map(q => {
-                if (ansMap[q] === true) return `<td class="correct">✅</td>`;
-                if (ansMap[q] === false) return `<td class="wrong">✖</td>`;
-                return `<td>-</td>`;
-            }).join('')}
-            <td class="correct">${correctCount}</td>
-            <td class="wrong">${wrongCount}</td>
-            <td>
-                <select onchange="updateRow('${sId}', this.value)">
-                    ${sessionList.map(s => `<option value="${s}" ${s === currentSess ? 'selected' : ''}>${s}</option>`).join('')}
-                </select>
-            </td>
-        `;
-    }
-
-    function logout() {
-        localStorage.removeItem("teacher_token");
-        window.location.href = "teacher-login.html";
-    }
-
-    // Chạy khi trang tải xong
-    loadData();
-</script>
+<script src="admin.js"></script>
 </body>
 </html>
