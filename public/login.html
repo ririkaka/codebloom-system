@@ -6,82 +6,68 @@
     <title>Đăng nhập Học sinh - CodeBloom</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        :root {
-            --primary: #4e73df;
-            --bg: #f8f9fc;
-            --white: #ffffff;
-        }
+        :root { --primary: #4e73df; --bg: #f8f9fc; }
         body {
             font-family: 'Segoe UI', sans-serif;
             background: linear-gradient(180deg, #4e73df 10%, #224abe 100%);
-            height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            margin: 0;
+            height: 100vh; display: flex; justify-content: center; align-items: center; margin: 0;
         }
         .login-card {
-            background: var(--white);
-            padding: 40px;
-            border-radius: 15px;
-            box-shadow: 0 1rem 3rem rgba(0,0,0,0.175);
-            width: 100%;
-            max-width: 400px;
-            text-align: center;
+            background: white; padding: 40px; border-radius: 15px;
+            box-shadow: 0 1rem 3rem rgba(0,0,0,0.175); width: 100%; max-width: 400px; text-align: center;
         }
         .input-group { margin-bottom: 20px; text-align: left; }
         .input-group label { display: block; margin-bottom: 5px; font-weight: bold; color: #4e73df; }
         .input-group input {
-            width: 100%;
-            padding: 12px;
-            border: 1px solid #d1d3e2;
-            border-radius: 5px;
-            box-sizing: border-box;
+            width: 100%; padding: 12px; border: 1px solid #d1d3e2; border-radius: 5px; box-sizing: border-box;
         }
         .btn-login {
-            width: 100%;
-            padding: 12px;
-            background: #4e73df;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            font-weight: bold;
-            cursor: pointer;
-            transition: 0.3s;
+            width: 100%; padding: 12px; background: #4e73df; color: white;
+            border: none; border-radius: 5px; font-weight: bold; cursor: pointer; transition: 0.3s;
         }
         .btn-login:hover { background: #2e59d9; }
-        #error-msg { color: #e74a3b; margin-top: 15px; display: none; font-size: 14px; }
+        #status-msg { margin-top: 15px; font-size: 14px; display: none; padding: 10px; border-radius: 5px; }
+        .error { background: #ffebee; color: #c62828; border: 1px solid #ef9a9a; }
+        .loading { color: white; margin-top: 10px; font-style: italic; }
     </style>
 </head>
 <body>
 
 <div class="login-card">
-    <h2 style="color: #3a3b45;">Học sinh Đăng nhập</h2>
+    <h2 style="color: #3a3b45;"><i class="fas fa-user-graduate"></i> Học sinh Đăng nhập</h2>
     <form id="login-form">
         <div class="input-group">
             <label>Mã số học sinh</label>
-            <input type="text" id="student_id" placeholder="Ví dụ: 002" required>
+            <input type="text" id="student_id" placeholder="Ví dụ: 002" required autocomplete="username">
         </div>
         <div class="input-group">
             <label>Mật khẩu</label>
-            <input type="password" id="password" placeholder="********" required>
+            <input type="password" id="password" placeholder="********" required autocomplete="current-password">
         </div>
-        <button type="submit" class="btn-login">ĐĂNG NHẬP</button>
+        <button type="submit" class="btn-login" id="submit-btn">ĐĂNG NHẬP</button>
     </form>
-    <p id="error-msg"></p>
+    <div id="status-msg"></div>
 </div>
 
 <script>
-    document.getElementById('login-form').addEventListener('submit', async (e) => {
+    const loginForm = document.getElementById('login-form');
+    const statusMsg = document.getElementById('status-msg');
+    const submitBtn = document.getElementById('submit-btn');
+
+    loginForm.addEventListener('submit', async (e) => {
         e.preventDefault();
-        const errorMsg = document.getElementById('error-msg');
-        errorMsg.style.display = 'none';
+        
+        // Trạng thái đang xử lý
+        statusMsg.style.display = 'block';
+        statusMsg.className = 'loading';
+        statusMsg.innerText = 'Đang kết nối tới server...';
+        submitBtn.disabled = true;
 
         const student_id = document.getElementById('student_id').value;
         const password = document.getElementById('password').value;
 
         try {
-            // Gửi yêu cầu đến API login trên Render
+            // Sử dụng đường dẫn tương đối để tự động khớp với domain Render
             const response = await fetch('/api/login', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -91,22 +77,30 @@
             const data = await response.json();
 
             if (response.ok) {
-                // Lưu token và thông tin vào máy để làm bài
-                localStorage.setItem('student_token', data.token);
+                // Lưu thông tin học sinh
                 localStorage.setItem('student_id', student_id);
                 localStorage.setItem('student_name', data.name);
                 
-                // Chuyển hướng đến trang làm bài
-                window.location.href = 'index.html';
+                statusMsg.innerText = 'Đăng nhập thành công! Đang chuyển hướng...';
+                setTimeout(() => {
+                    window.location.href = 'index.html'; 
+                }, 1000);
             } else {
-                errorMsg.innerText = data.message || 'Đăng nhập thất bại!';
-                errorMsg.style.display = 'block';
+                showError(data.message || 'Sai mã số hoặc mật khẩu!');
             }
         } catch (error) {
-            errorMsg.innerText = 'Lỗi kết nối server!';
-            errorMsg.style.display = 'block';
+            console.error('Fetch error:', error);
+            showError('Lỗi: Không thể kết nối tới server. Hãy thử tải lại trang (F5)!');
+        } finally {
+            submitBtn.disabled = false;
         }
     });
+
+    function showError(msg) {
+        statusMsg.className = 'error';
+        statusMsg.style.display = 'block';
+        statusMsg.innerText = msg;
+    }
 </script>
 </body>
 </html>
