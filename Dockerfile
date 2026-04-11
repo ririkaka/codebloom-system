@@ -1,14 +1,21 @@
-# Sử dụng Node.js bản chính thức
-FROM node:20
+# Sử dụng Node.js bản ổn định (LTS) thay vì bản quá mới
+FROM node:20-slim
 
-# Cài đặt GCC bên trong Docker (có quyền root)
-RUN apt-get update && apt-get install -y gcc g++
+# Cài đặt GCC và các công cụ cần thiết cho C++
+RUN apt-get update && apt-get install -y \
+    gcc \
+    g++ \
+    make \
+    && rm -rf /var/lib/apt/lists/*
 
-# Tạo thư mục app
+# Thiết lập thư mục làm việc
 WORKDIR /usr/src/app
 
-# Copy package.json và cài đặt thư viện
+# Chỉ copy package.json trước để tận dụng cache của Docker
 COPY package*.json ./
+
+# Cài đặt lại từ đầu toàn bộ thư viện
+RUN npm cache clean --force
 RUN npm install
 
 # Copy toàn bộ code vào
