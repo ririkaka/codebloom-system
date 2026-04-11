@@ -12,18 +12,19 @@ app.use(cors());
 app.use(express.static(path.join(__dirname, 'public')));
 
 // 1. KẾT NỐI DATABASE
-// LƯU Ý: Thay đổi password và tên database 'CodeBloom' cho đúng
+// Thay đổi 'mat_khau_cua_ban' thành mật khẩu thật của bạn
 const mongoURI = "mongodb+srv://CamTu123:CamTu123@cluster0ctu.0fxpqmu.mongodb.net/CodeBloom?retryWrites=true&w=majority";
 
-mongoose.connect(mongoURI) // Đã xóa useNewUrlParser và useUnifiedTopology để fix lỗi
+// FIX: Đã xóa các options lỗi (useNewUrlParser, useUnifiedTopology)
+mongoose.connect(mongoURI)
     .then(() => {
-        console.log('✅ MongoDB Connected: CodeBloom Database'); // Xác nhận kết nối thành công
+        console.log('✅ MongoDB Connected: CodeBloom Database');
     })
     .catch(err => {
         console.error('❌ MongoDB Connection Error:', err.message);
     });
 
-// 2. SCHEMA (Khớp với cấu trúc database thực tế của bạn)
+// 2. ĐỊNH NGHĨA SCHEMA (Khớp với cấu trúc database của bạn)
 const studentSchema = new mongoose.Schema({
     student_id: { type: String, required: true },
     name: { type: String, required: true },
@@ -41,7 +42,7 @@ app.post('/api/login', async (req, res) => {
             return res.status(401).json({ message: "Mã số học sinh không tồn tại!" });
         }
 
-        // So sánh mật khẩu bằng Bcrypt
+        // Kiểm tra mật khẩu mã hóa bcrypt
         const isMatch = await bcrypt.compare(password, student.password);
         if (!isMatch) {
             return res.status(401).json({ message: "Mật khẩu không chính xác!" });
@@ -58,8 +59,8 @@ app.post('/api/login', async (req, res) => {
 });
 
 // 4. KHỞI CHẠY SERVER
-const PORT = process.env.PORT || 10000; // Port 10000 khớp với Log của bạn
+const PORT = process.env.PORT || 10000; // Khớp với cổng Render yêu cầu
 app.listen(PORT, () => {
     console.log(`🚀 Server đang chạy tại: http://localhost:${PORT}`);
-    console.log(`📂 Folder giao diện: /public`);
+    console.log(`📂 Thư mục công khai: /public`);
 });
