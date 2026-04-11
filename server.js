@@ -85,7 +85,7 @@ app.get('*', (req, res) => {
 });
 
 // --- 7. Khởi chạy Server ---
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 10000;
 app.listen(PORT, () => {
     console.log(`----------------------------------------`);
     console.log(`🚀 Server đang chạy tại: http://localhost:${PORT}`);
