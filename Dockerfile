@@ -1,24 +1,23 @@
-# Sử dụng Node.js bản ổn định (LTS) thay vì bản quá mới
-FROM node:20-slim
+# Sử dụng bản ổn định (LTS) để tránh lỗi module
+FROM node:20-bookworm-slim
 
-# Cài đặt GCC và các công cụ cần thiết cho C++
+# Cài đặt GCC và các công cụ biên dịch
 RUN apt-get update && apt-get install -y \
     gcc \
     g++ \
     make \
     && rm -rf /var/lib/apt/lists/*
 
-# Thiết lập thư mục làm việc
+# Tạo thư mục làm việc
 WORKDIR /usr/src/app
 
-# Chỉ copy package.json trước để tận dụng cache của Docker
+# Chỉ copy file package trước để tối ưu build
 COPY package*.json ./
 
-# Cài đặt lại từ đầu toàn bộ thư viện
-RUN npm cache clean --force
-RUN npm install
+# Xóa cache và cài đặt mới hoàn toàn thư viện
+RUN npm cache clean --force && npm install
 
-# Copy toàn bộ code vào
+# Copy toàn bộ code còn lại
 COPY . .
 
 # Mở cổng 10000
