@@ -1,94 +1,139 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
+const bcrypt = require('bcryptjs'); 
+const jwt = require('jsonwebtoken');
 const path = require('path');
-const bcrypt = require('bcryptjs'); // Đảm bảo đã chạy: npm install bcryptjs
+const fs = require('fs');
+const { exec } = require('child_process');
+const { v4: uuidv4 } = require('uuid');
+require('dotenv').config();
 
 const app = express();
 
-// --- 1. Cấu hình Middleware ---
-app.use(cors());
+// --- 1. MIDDLEWARE ---
 app.use(express.json());
-// Phục vụ các file trong folder public (admin.html, teacher-login.html, admin.js...)
+app.use(cors());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// --- 2. Kết nối MongoDB Atlas ---
-const mongoURI = "mongodb+srv://CamTu123:CamTu123@cluster0ctu.0fxpqmu.mongodb.net/codebloom?retryWrites=true&w=majority";
-mongoose.connect(mongoURI)
-    .then(() => console.log("✅ MongoDB Connected: CodeBloom Database"))
-    .catch(err => console.error("❌ Lỗi kết nối MongoDB:", err));
+// --- 2. CẤU HÌNH BIẾN MÔI TRƯỜNG ---
+// Ưu tiên dùng biến môi trường từ Render để bảo mật
+const PORT = process.env.PORT || 10000;
+const JWT_SECRET = process.env.JWT_SECRET || "codebloom_secret_key";
+const mongoURI = process.env.MONGODB_URI || "mongodb+srv://CamTu123:CamTu123@cluster0ctu.0fxpqmu.mongodb.net/codebloom?retryWrites=true&w=majority";
 
-// --- 3. Định nghĩa Models (Khớp với dữ liệu thực tế của bạn) ---
-// Model Giáo viên (Dùng để kiểm tra mật khẩu đã hash $2b$12$...)
+// Tạo thư mục tạm để biên dịch (Sử dụng /tmp trên Render để có quyền ghi)
+const tempDir = process.env.NODE_ENV === 'production' ? '/tmp' : path.join(__dirname, 'temp');
+if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir);
+
+// --- 3. KẾT NỐI DATABASE ---
+mongoose.connect(mongoURI)
+    .then(() => console.log('✅ Connected to MongoDB'))
+    .catch(err => console.error('❌ MongoDB Connection Error:', err.message));
+
+// --- 4. ĐỊNH NGHĨA MODELS ---
 const Teacher = mongoose.model('Teacher', new mongoose.Schema({
+    teacher_id: { type: String, required: true, unique: true },
     t_name: String,
-    t_password: String
+    t_password: { type: String, required: true }
 }, { collection: 'teachers' }));
 
-// Model Học sinh
 const Student = mongoose.model('Student', new mongoose.Schema({
     student_id: String,
-    name: String
+    name: String,
+    password: { type: String, required: true }
 }, { collection: 'students' }));
 
-// Model Kết quả bài làm
-const Result = mongoose.model('Result', new mongoose.Schema({
-    studentId: String,
+const Question = mongoose.model('Question', new mongoose.Schema({
     question_id: String,
-    correct: Boolean,
-    session_id: String
-}, { collection: 'results', timestamps: true }));
+    test_cases: [{ input: String, expected: String }]
+}, { collection: 'questions' }));
 
-// --- 4. API Đăng nhập giáo viên (Xử lý Bcrypt) ---
-app.post('/api/teacher/login', async (req, res) => {
-    const { username, password } = req.body;
+const Result = mongoose.model('Result', new mongoose.Schema({
+    student_id: String,
+    question_id: String,
+    session_id: String,
+    code: String,
+    status: String,
+    submittedAt: { type: Date, default: Date.now }
+}, { collection: 'results' }));
+
+// --- 5. API ENDPOINTS ---
+
+// Đăng nhập Giáo viên
+app.post('/api/teacher-login', async (req, res) => {
     try {
-        const teacher = await Teacher.findOne({ t_name: username });
-        if (!teacher) {
-            return res.status(401).json({ success: false, message: "Tài khoản không tồn tại!" });
-        }
+        const { teacher_id, password } = req.body;
+        const teacher = await Teacher.findOne({ teacher_id: teacher_id.trim() });
+        if (!teacher) return res.status(401).json({ error: "Mã giáo viên không tồn tại" });
 
-        // So sánh mật khẩu nhập vào với mật khẩu hash trong DB
         const isMatch = await bcrypt.compare(password, teacher.t_password);
-        if (isMatch) {
-            res.json({ success: true, token: "valid" });
-        } else {
-            res.status(401).json({ success: false, message: "Mật khẩu không chính xác!" });
-        }
+        if (!isMatch) return res.status(401).json({ error: "Mật khẩu không chính xác" });
+
+        const token = jwt.sign({ id: teacher._id, role: 'teacher' }, JWT_SECRET, { expiresIn: '24h' });
+        res.json({ message: "Success", token, name: teacher.t_name });
     } catch (err) {
-        res.status(500).json({ success: false, message: "Lỗi hệ thống server!" });
+        res.status(500).json({ error: "Lỗi hệ thống" });
     }
 });
 
-// --- 5. API Lấy dữ liệu cho Dashboard Admin ---
+// Chấm bài tự động (Đã sửa để tương thích Linux/Render)
+app.post('/api/submit', async (req, res) => {
+    const { student_id, question_id, session_id, code } = req.body;
+    const question = await Question.findOne({ question_id });
+    if (!question) return res.status(404).json({ error: "Không tìm thấy câu hỏi" });
 
-// Lấy danh sách học sinh
-app.get('/api/students', async (req, res) => {
-    try {
-        const data = await Student.find();
-        res.json(data);
-    } catch (err) { res.status(500).json([]); }
+    const id = uuidv4();
+    const filePath = path.join(tempDir, `${id}.c`);
+    
+    // TRÊN LINUX (RENDER) KHÔNG DÙNG ĐUÔI .EXE
+    const isWindows = process.platform === "win32";
+    const exePath = isWindows ? path.join(tempDir, `${id}.exe`) : path.join(tempDir, id);
+
+    fs.writeFileSync(filePath, code);
+
+    // Lệnh biên dịch
+    exec(`gcc "${filePath}" -o "${exePath}"`, async (err) => {
+        if (err) {
+            if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+            return res.json({ isCorrect: false, error: "Lỗi biên dịch" });
+        }
+
+        let passed = true;
+        for (let tc of question.test_cases) {
+            try {
+                const output = await new Promise((resolve, reject) => {
+                    // Chạy file thực thi (Thêm ./ trên Linux)
+                    const runCmd = isWindows ? `"${exePath}"` : `./${id}`;
+                    const child = exec(runCmd, { cwd: tempDir }, (e, stdout) => e ? reject(e) : resolve(stdout.trim()));
+                    
+                    if (tc.input) { 
+                        child.stdin.write(tc.input + "\n"); 
+                        child.stdin.end(); 
+                    }
+                });
+                if (output !== tc.expected.trim()) { passed = false; break; }
+            } catch { passed = false; break; }
+        }
+
+        // Lưu kết quả vào DB
+        await Result.create({ 
+            student_id, question_id, session_id, code, 
+            status: passed ? "Đúng" : "Sai" 
+        });
+
+        // Dọn dẹp file tạm
+        if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+        if (fs.existsSync(exePath)) fs.unlinkSync(exePath);
+
+        res.json({ isCorrect: passed });
+    });
 });
 
-// Lấy toàn bộ kết quả nộp bài
-app.get('/api/results', async (req, res) => {
-    try {
-        const data = await Result.find().sort({ createdAt: -1 });
-        res.json(data);
-    } catch (err) { res.status(500).json([]); }
-});
+app.get('/api/students', async (req, res) => res.json(await Student.find()));
+app.get('/api/results', async (req, res) => res.json(await Result.find()));
 
-// --- 6. Điều hướng Frontend ---
-// Luôn trả về trang login nếu người dùng vào địa chỉ không tồn tại
-app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public/teacher-login.html'));
-});
-
-// --- 7. Khởi chạy Server ---
-const PORT = process.env.PORT || 10000;
-app.listen(PORT, () => {
-    console.log(`----------------------------------------`);
-    console.log(`🚀 Server đang chạy tại: http://localhost:${PORT}`);
-    console.log(`📂 Folder giao diện: /public`);
-    console.log(`----------------------------------------`);
+// --- 6. KHỞI CHẠY ---
+app.listen(PORT, "0.0.0.0", () => {
+    console.log(`🚀 Server is running on port ${PORT}`);
 });

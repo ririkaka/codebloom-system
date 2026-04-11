@@ -1,92 +1,91 @@
 [
   {
     "question_id": "Q001",
-    "content": "Viết hàm kiểm tra số chẵn hay lẻ.",
-    "level": "Nhận biết",
+    "content": "Viết chương trình in ra dòng chữ 'Hello World' trên một dòng.",
+    "level": "Nhớ",
     "test_cases": [
-      { "input": 1, "output": "Lẻ" },
-      { "input": 2, "output": "Chẵn" }
+      { "input": "", "expected": "Hello World" }
     ]
   },
   {
     "question_id": "Q002",
-    "content": "Viết hàm tính tổng hai số.",
-    "level": "Nhận biết",
+    "content": "Khai báo một biến số nguyên n, nhập giá trị từ bàn phím và in ra giá trị đó.",
+    "level": "Nhớ",
     "test_cases": [
-      { "input": [2, 3], "output": 5 },
-      { "input": [10, 5], "output": 15 }
+      { "input": "10", "expected": "10" },
+      { "input": "99", "expected": "99" }
     ]
   },
   {
     "question_id": "Q003",
-    "content": "Viết hàm tìm số lớn nhất trong 3 số.",
-    "level": "Thông hiểu",
+    "content": "Viết hàm kiểm tra một số nguyên n nhập vào là số chẵn hay số lẻ. In ra 'Chan' hoặc 'Le'.",
+    "level": "Hiểu",
     "test_cases": [
-      { "input": [1, 5, 3], "output": 5 },
-      { "input": [7, 2, 9], "output": 9 }
+      { "input": "4", "expected": "Chan" },
+      { "input": "7", "expected": "Le" }
     ]
   },
   {
     "question_id": "Q004",
-    "content": "Viết hàm kiểm tra một số có phải số nguyên tố không.",
-    "level": "Thông hiểu",
+    "content": "Nhập vào 2 số nguyên a và b. Tính và in ra tổng của hai số đó.",
+    "level": "Hiểu",
     "test_cases": [
-      { "input": 5, "output": true },
-      { "input": 8, "output": false }
+      { "input": "5 10", "expected": "15" },
+      { "input": "-2 8", "expected": "6" }
     ]
   },
   {
     "question_id": "Q005",
-    "content": "Viết hàm tính giai thừa của một số n.",
+    "content": "Viết chương trình tính giai thừa của một số nguyên dương n (n!).",
     "level": "Vận dụng",
     "test_cases": [
-      { "input": 4, "output": 24 },
-      { "input": 5, "output": 120 }
+      { "input": "5", "expected": "120" },
+      { "input": "3", "expected": "6" }
     ]
   },
   {
     "question_id": "Q006",
-    "content": "Viết hàm đảo ngược chuỗi.",
+    "content": "Tìm và in ra số lớn nhất trong 3 số nguyên a, b, c nhập từ bàn phím.",
     "level": "Vận dụng",
     "test_cases": [
-      { "input": "abc", "output": "cba" },
-      { "input": "hello", "output": "olleh" }
+      { "input": "3 9 5", "expected": "9" },
+      { "input": "10 2 1", "expected": "10" }
     ]
   },
   {
     "question_id": "Q007",
-    "content": "Viết hàm đếm số lượng số chẵn trong mảng.",
+    "content": "Viết chương trình in ra các số nguyên tố nhỏ hơn n (với n nhập từ bàn phím).",
     "level": "Vận dụng",
     "test_cases": [
-      { "input": [1, 2, 3, 4], "output": 2 },
-      { "input": [2, 4, 6], "output": 3 }
+      { "input": "10", "expected": "2 3 5 7" },
+      { "input": "5", "expected": "2 3" }
     ]
   },
   {
     "question_id": "Q008",
-    "content": "Viết hàm tìm phần tử lớn nhất trong mảng.",
+    "content": "Cho một mảng số nguyên gồm n phần tử. Hãy tính trung bình cộng của các phần tử trong mảng đó.",
     "level": "Phân tích",
     "test_cases": [
-      { "input": [1, 9, 3, 7], "output": 9 },
-      { "input": [10, 20, 5], "output": 20 }
+      { "input": "3\n1 2 3", "expected": "2.00" },
+      { "input": "4\n5 5 10 10", "expected": "7.50" }
     ]
   },
   {
     "question_id": "Q009",
-    "content": "Viết hàm kiểm tra chuỗi có phải là palindrome không.",
+    "content": "Viết chương trình nhập vào một chuỗi ký tự và đếm xem có bao nhiêu ký tự là nguyên âm (a, e, i, o, u).",
     "level": "Phân tích",
     "test_cases": [
-      { "input": "madam", "output": true },
-      { "input": "hello", "output": false }
+      { "input": "hello", "expected": "2" },
+      { "input": "codebloom", "expected": "4" }
     ]
   },
   {
     "question_id": "Q010",
-    "content": "Viết hàm sắp xếp mảng số tăng dần.",
-    "level": "Phân tích",
+    "content": "Xây dựng chương trình mô phỏng một máy tính bỏ túi đơn giản cho phép chọn phép tính (+, -, *, /) cho hai số thực.",
+    "level": "Sáng tạo",
     "test_cases": [
-      { "input": [3, 1, 2], "output": [1, 2, 3] },
-      { "input": [5, 2, 8], "output": [2, 5, 8] }
+      { "input": "10 + 5", "expected": "15.00" },
+      { "input": "20 / 4", "expected": "5.00" }
     ]
   }
 ]

@@ -3,33 +3,117 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Đăng nhập Giáo viên - CodeBloom</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <title>Đăng nhập Giáo viên | CodeBloom</title>
     <style>
-        body { font-family: 'Segoe UI', sans-serif; background: #007bff; height: 100vh; display: flex; justify-content: center; align-items: center; margin: 0; }
-        .login-card { background: white; padding: 40px; border-radius: 15px; width: 350px; text-align: center; box-shadow: 0 4px 20px rgba(0,0,0,0.1); }
-        .input-group { text-align: left; margin-bottom: 20px; }
-        .input-group label { display: block; font-weight: bold; margin-bottom: 5px; }
-        .input-group input { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
-        .btn-login { width: 100%; padding: 12px; background: #007bff; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
-        .error-msg { color: #dc3545; font-size: 14px; margin-top: 15px; display: none; }
+        /* Thiết lập nền gradient xanh nhạt và căn giữa tuyệt đối */
+        body { 
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; 
+            background: linear-gradient(135deg, #e0f2fe 0%, #ffffff 100%); 
+            height: 100vh; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            margin: 0;
+        }
+
+        /* Thẻ card đăng nhập với bo góc và bóng đổ mềm mại */
+        .login-card { 
+            background: white; 
+            padding: 40px 45px; 
+            border-radius: 24px; 
+            width: 100%;
+            max-width: 420px; 
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08); 
+            text-align: center;
+        }
+
+        .login-card h2 { 
+            font-size: 26px; 
+            color: #007bff; 
+            margin-bottom: 35px; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center;
+            gap: 12px; 
+        }
+
+        .input-group { text-align: left; margin-bottom: 22px; }
+        
+        .input-group label { 
+            display: block; 
+            font-weight: 600; 
+            margin-bottom: 10px; 
+            color: #4b5563; 
+        }
+
+        .input-group input { 
+            width: 100%; 
+            padding: 14px 16px; 
+            border: 1px solid #e5e7eb; 
+            border-radius: 12px; 
+            box-sizing: border-box; 
+            font-size: 16px;
+            background-color: #f9fafb;
+            transition: all 0.2s ease;
+        }
+
+        .input-group input:focus {
+            outline: none;
+            border-color: #007bff;
+            background-color: #ffffff;
+            box-shadow: 0 0 0 4px rgba(0, 123, 255, 0.1);
+        }
+
+        /* Nút đăng nhập màu xanh dương đậm chuẩn UI */
+        .btn-login { 
+            width: 100%; 
+            padding: 16px; 
+            background: #007bff; 
+            color: white; 
+            border: none; 
+            border-radius: 12px; 
+            cursor: pointer; 
+            font-weight: 700; 
+            font-size: 16px;
+            margin-top: 10px;
+            transition: background 0.2s, transform 0.1s;
+        }
+
+        .btn-login:hover { background: #006ae6; }
+        .btn-login:active { transform: scale(0.98); }
+
+        /* Thông báo lỗi dạng banner hồng nhạt phía dưới nút */
+        .error-msg { 
+            color: #dc2626; 
+            font-size: 14px; 
+            margin-top: 20px; 
+            display: none; 
+            background: #fef2f2;
+            padding: 12px;
+            border-radius: 10px;
+            border: 1px solid #fee2e2;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
     </style>
 </head>
 <body>
+
 <div class="login-card">
     <h2>👩‍🏫 Đăng nhập Giáo viên</h2>
     <form id="teacherForm">
         <div class="input-group">
-            <label>Tên đăng nhập</label>
-            <input type="text" id="username" placeholder="Nhập tài khoản" required>
+            <label>Mã giáo viên</label>
+            <input type="text" id="teacher_id" placeholder="001" required>
         </div>
         <div class="input-group">
             <label>Mật khẩu</label>
-            <input type="password" id="password" placeholder="Nhập mật khẩu" required>
+            <input type="password" id="password" placeholder="•••" required>
         </div>
-        <button type="submit" class="btn-login">Đăng nhập</button>
+        <button type="submit" class="btn-login">Đăng nhập ngay</button>
     </form>
-    <p id="msg" class="error-msg"></p>
+    <div id="msg" class="error-msg"></div>
 </div>
 
 <script>
@@ -38,15 +122,14 @@
         const msg = document.getElementById('msg');
         msg.style.display = 'none';
 
-        const username = document.getElementById('username').value;
+        const teacher_id = document.getElementById('teacher_id').value.trim();
         const password = document.getElementById('password').value;
 
         try {
-            // Dùng đường dẫn /api/... để tự động nhận diện domain Render
             const response = await fetch('/api/teacher-login', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username, password })
+                body: JSON.stringify({ teacher_id, password })
             });
 
             const data = await response.json();
@@ -55,12 +138,13 @@
                 localStorage.setItem("teacher_token", data.token);
                 window.location.href = "admin.html";
             } else {
-                msg.innerText = data.message;
-                msg.style.display = 'block';
+                msg.innerHTML = `❌ ${data.error || "Mã giáo viên hoặc mật khẩu không đúng!"}`;
+                msg.style.display = 'flex';
             }
         } catch (err) {
-            msg.innerText = "Lỗi kết nối server! Hãy thử lại sau 30 giây.";
-            msg.style.display = 'block';
+            // Hiển thị lỗi kết nối giống hệt mẫu
+            msg.innerHTML = `❌ Không thể kết nối đến máy chủ. Vui lòng kiểm tra lại!`;
+            msg.style.display = 'flex';
         }
     });
 </script>

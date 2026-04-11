@@ -4,259 +4,182 @@
   <meta charset="UTF-8">
   <title>Làm bài - CodeBloom</title>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 0;
-      background: #f2f2f2;
-    }
-    .container {
-      display: flex;
-      height: 100vh;
-    }
-    .sidebar {
-      width: 30%;
-      background: #ffffff;
-      border-right: 1px solid #ddd;
-      padding: 20px;
-      overflow-y: auto;
-    }
-    .main {
-      width: 70%;
-      padding: 20px;
-    }
-    .question-item {
-      padding: 10px;
-      border: 1px solid #ddd;
-      border-radius: 6px;
-      margin-bottom: 10px;
-      cursor: pointer;
-    }
-    .question-item.active {
-      background-color: #cce5ff;
-      border-left: 5px solid #007bff;
-    }
-    .question-item.done {
-      background-color: #d4edda;
-      border-left: 5px solid #28a745;
-    }
-    textarea {
-      width: 100%;
-      height: 300px;
-      font-family: monospace;
-      font-size: 15px;
-    }
-    button {
-      padding: 12px 20px;
-      font-size: 16px;
-      border: none;
-      border-radius: 6px;
-      cursor: pointer;
-      margin-right: 10px;
-    }
-    #submitBtn {
-      background-color: #007bff;
-      color: white;
-    }
-    #submitBtn:disabled {
-      background-color: #ccc;
-    }
-    #finishBtn {
-      background-color: #28a745;
-      color: white;
-    }
-    .timer {
-      text-align: right;
-      font-weight: bold;
-      font-size: 18px;
-      margin-bottom: 10px;
-    }
-    #sessionForm {
-      margin-bottom: 15px;
-    }
+    body { font-family: 'Segoe UI', Tahoma, sans-serif; margin: 0; background: #f0f2f5; display: flex; height: 100vh; overflow: hidden; }
+    .sidebar { width: 320px; background: #ffffff; border-right: 1px solid #ddd; padding: 20px; display: flex; flex-direction: column; box-shadow: 2px 0 5px rgba(0,0,0,0.05); }
+    .sidebar h3 { font-size: 18px; margin: 0 0 20px 0; display: flex; align-items: center; gap: 10px; }
+    .session-group { margin-bottom: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px; border: 1px solid #eee; }
+    .session-group label { font-size: 13px; font-weight: bold; color: #555; display: block; margin-bottom: 8px; }
+    .session-input-wrapper { display: flex; gap: 5px; }
+    .session-input-wrapper input { flex: 1; padding: 8px; border: 1px solid #ccc; border-radius: 4px; outline: none; background: #fff; }
+    .btn-start { padding: 8px 15px; background: #fff; border: 1px solid #ccc; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+    .question-list { flex: 1; overflow-y: auto; }
+    .question-item { background: #fff; border: 1px solid #e0e0e0; padding: 15px; margin-bottom: 10px; border-radius: 8px; cursor: pointer; font-size: 14px; transition: all 0.2s; color: #333; }
+    .question-item:hover { border-color: #007bff; background: #f0f7ff; }
+    .question-item.active { border-left: 5px solid #007bff; background: #e7f1ff; font-weight: 600; }
+    .question-item.done { border-left: 5px solid #28a745; background: #f4faf6; }
+    .main { flex: 1; padding: 25px; display: flex; flex-direction: column; background: #fff; }
+    .header-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+    .timer { font-size: 20px; font-weight: bold; color: #000; display: flex; align-items: center; gap: 8px; }
+    #questionTitle { margin: 0; font-size: 18px; color: #000; flex: 1; }
+    textarea { flex: 1; width: 100%; padding: 20px; font-family: 'Consolas', 'Monaco', monospace; font-size: 16px; border: 1px solid #ddd; border-radius: 8px; resize: none; outline: none; background: #fdfdfd; line-height: 1.5; color: #2c3e50; box-sizing: border-box; }
+    textarea:disabled { background: #f5f5f5; cursor: not-allowed; }
+    .footer-bar { margin-top: 20px; display: flex; gap: 12px; }
+    .btn-action { padding: 12px 30px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 15px; color: white; transition: 0.2s; }
+    .btn-blue { background: #007bff; }
+    .btn-green { background: #28a745; }
+    .btn-action:disabled { opacity: 0.6; cursor: not-allowed; }
   </style>
 </head>
 <body>
 
-<div class="container">
-  <div class="sidebar">
-    <h3>🧠 Danh sách câu hỏi</h3>
-    <form id="sessionForm">
-      <label for="sessionInput">🔐 Nhập mã phiên:</label><br>
-      <input type="text" id="sessionInput" required placeholder="VD: PHIEN_123">
-      <button type="submit">Bắt đầu</button>
-    </form>
-    <div id="questionList"></div>
-  </div>
-
-  <div class="main">
-    <div class="timer">⏳ Còn lại: <span id="timeLeft">30:00</span></div>
-    <h3 id="questionTitle">Chọn một câu hỏi để bắt đầu</h3>
-    <textarea id="codeInput" placeholder="// Viết code tại đây..." disabled></textarea>
-
-    <div style="margin-top: 10px;">
-      <button id="submitBtn" disabled>Nộp bài</button>
-      <button id="finishBtn" disabled>Xong</button>
+<div class="sidebar">
+  <h3>🧠 Danh sách câu hỏi</h3>
+  <div class="session-group">
+    <label>📂 Nhập mã phiên:</label>
+    <div class="session-input-wrapper">
+        <input type="text" id="sessionInput" readonly>
+        <button id="startBtn" class="btn-start" onclick="startExam()">Bắt đầu</button>
     </div>
+  </div>
+  <div id="questionList" class="question-list"></div>
+</div>
 
-    <div id="resultBox"></div>
+<div class="main">
+  <div class="header-bar">
+      <h3 id="questionTitle">Chọn một câu hỏi để bắt đầu</h3>
+      <div class="timer">⏳ Còn lại: <span id="timeLeft">30:00</span></div>
+  </div>
+  <textarea id="codeInput" placeholder="// Viết code tại đây..." disabled></textarea>
+  <div class="footer-bar">
+    <button id="submitBtn" class="btn-action btn-blue" disabled onclick="submitCode()">Nộp bài</button>
+    <button id="finishBtn" class="btn-action btn-green" disabled onclick="handleFinish()">Xong</button>
   </div>
 </div>
 
 <script>
-  const API_BASE = "https://codebloom-system.onrender.com";
-  const token = localStorage.getItem("student_token");
+  const API_BASE = window.location.origin;
   const student_id = localStorage.getItem("student_id");
-  const startTimeKey = "startTime";
-
-  if (!token || !student_id) {
-    alert("❌ Vui lòng đăng nhập trước!");
-    window.location.href = "login.html";
-  }
-
-  const sessionForm = document.getElementById("sessionForm");
-  const sessionInput = document.getElementById("sessionInput");
-  const session_id_saved = localStorage.getItem("session_id");
-  if (session_id_saved) {
-    sessionInput.value = session_id_saved;
-  }
-
   let questions = [];
-  let selectedQuestion = null;
-  const doneQuestions = {};
-  const maxTime = 30 * 60 * 1000;
-  const questionList = document.getElementById("questionList");
-  const codeInput = document.getElementById("codeInput");
-  const submitBtn = document.getElementById("submitBtn");
-  const finishBtn = document.getElementById("finishBtn");
-  const exitBtn = document.getElementById("exitBtn");
-  const resultBox = document.getElementById("resultBox");
-  const questionTitle = document.getElementById("questionTitle");
+  let selectedQ = null;
+  let timeLeft = 30 * 60;
+  
+  // Đối tượng lưu trữ code theo từng câu hỏi
+  let userAnswers = {}; 
+  let resultsTracking = {}; 
 
-  ["copy", "paste", "cut"].forEach(evt => {
-    codeInput.addEventListener(evt, e => {
-      e.preventDefault();
-      alert("🚫 Không được sử dụng thao tác này trong vùng code!");
-    });
+  window.onload = async () => {
+    if (!student_id) return window.location.href = "login.html";
+    try {
+        const res = await fetch(`${API_BASE}/api/results/status/${student_id}`);
+        const data = await res.json();
+        const nextSession = (data.last_session_number || 0) + 1;
+        document.getElementById("sessionInput").value = `PHIEN_${nextSession}`;
+    } catch (e) { document.getElementById("sessionInput").value = "PHIEN_1"; }
+  };
+
+  // Ngăn chặn copy/paste
+  const editor = document.getElementById("codeInput");
+  ['copy', 'paste', 'cut', 'contextmenu'].forEach(evt => {
+      editor.addEventListener(evt, e => {
+          e.preventDefault();
+          alert("🚫 Hành động bị chặn: Không được copy/paste trong vùng làm bài!");
+      });
   });
 
-  sessionForm.onsubmit = async (e) => {
-    e.preventDefault();
-    session_id = sessionInput.value.trim();
-    if (!session_id) return alert("⚠️ Bạn cần nhập mã phiên!");
-
-    localStorage.setItem("session_id", session_id);
-    localStorage.setItem(startTimeKey, Date.now());
-    sessionInput.disabled = true;
-    sessionForm.querySelector("button").disabled = true;
-
-    submitBtn.disabled = false;
-    finishBtn.disabled = false;
-
-    await loadQuestions();
-    updateCountdown();
-    setInterval(updateCountdown, 1000);
-  };
-
-  function updateCountdown() {
-    const startTime = parseInt(localStorage.getItem(startTimeKey) || "0");
-    const now = Date.now();
-    const elapsed = now - startTime;
-    const remaining = maxTime - elapsed;
-    const timeBox = document.getElementById("timeLeft");
-
-    if (remaining <= 0) {
-      alert("⏰ Hết giờ!");
-      codeInput.disabled = true;
-      submitBtn.disabled = true;
-      finishBtn.disabled = true;
-      return;
-    }
-
-    const minutes = Math.floor(remaining / 60000);
-    const seconds = Math.floor((remaining % 60000) / 1000);
-    timeBox.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+  async function startExam() {
+    localStorage.setItem("session_id", document.getElementById("sessionInput").value);
+    document.getElementById("startBtn").disabled = true;
+    try {
+        const res = await fetch(`${API_BASE}/api/questions`);
+        questions = await res.json();
+        renderQuestions();
+        startTimer();
+        document.getElementById("finishBtn").disabled = false;
+    } catch (e) { alert("Lỗi tải câu hỏi!"); }
   }
 
-  async function loadQuestions() {
-    const res = await fetch(`${API_BASE}/questions`);
-    questions = await res.json();
-    questionList.innerHTML = "";
-    questions.forEach(q => {
-      const div = document.createElement("div");
-      div.className = "question-item";
-      div.textContent = `${q.question_id} - ${q.content}`;
-      div.onclick = () => selectQuestion(q, div);
-      questionList.appendChild(div);
+  function renderQuestions() {
+    const list = document.getElementById("questionList");
+    list.innerHTML = questions.map(q => `
+        <div class="question-item" id="q-${q.question_id}" onclick="selectQuestion('${q.question_id}')">
+            <strong>${q.question_id}</strong> - ${q.content}
+        </div>
+    `).join('');
+  }
+
+  function selectQuestion(id) {
+    selectedQ = questions.find(q => q.question_id === id);
+    document.querySelectorAll('.question-item').forEach(el => el.classList.remove('active'));
+    document.getElementById(`q-${id}`).classList.add('active');
+    
+    document.getElementById("questionTitle").innerText = `${selectedQ.question_id} - ${selectedQ.content}`;
+    editor.disabled = false;
+    document.getElementById("submitBtn").disabled = false;
+
+    // HIỂN THỊ LẠI CODE NẾU ĐÃ LÀM, NẾU CHƯA THÌ ĐỂ TRỐNG
+    editor.value = userAnswers[id] || "";
+    editor.focus();
+  }
+
+  function startTimer() {
+    const interval = setInterval(() => {
+        let m = Math.floor(timeLeft / 60);
+        let s = timeLeft % 60;
+        document.getElementById("timeLeft").innerText = `${m}:${s < 10 ? '0' : ''}${s}`;
+        if (timeLeft <= 0) { clearInterval(interval); alert("Hết giờ!"); editor.disabled = true; }
+        timeLeft--;
+    }, 1000);
+  }
+
+  async function submitCode() {
+    const code = editor.value.trim();
+    if(!code) return alert("Vui lòng nhập code!");
+
+    // LƯU CODE VÀO BỘ NHỚ TẠM TRƯỚC KHI XÓA MÀN HÌNH
+    userAnswers[selectedQ.question_id] = code;
+
+    const res = await fetch(`${API_BASE}/api/submit`, {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({
+            student_id,
+            question_id: selectedQ.question_id,
+            session_id: localStorage.getItem("session_id"),
+            code
+        })
     });
-  }
-
-  function selectQuestion(q, element) {
-    if (selectedQuestion?.element) {
-      selectedQuestion.element.classList.remove("active");
-    }
-    selectedQuestion = { data: q, element };
-    element.classList.add("active");
-    questionTitle.textContent = `🧠 ${q.question_id} - ${q.content}`;
-    codeInput.value = "";
-    codeInput.disabled = !!doneQuestions[q.question_id];
-    submitBtn.disabled = !!doneQuestions[q.question_id];
-    resultBox.innerHTML = "";
-  }
-
-  submitBtn.onclick = async () => {
-    const code = codeInput.value.trim();
-    if (!code || !selectedQuestion) return alert("⚠️ Chưa chọn câu hỏi hoặc chưa nhập code!");
-
-    submitBtn.disabled = true;
-
-    const res = await fetch(`${API_BASE}/submit`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`
-      },
-      body: JSON.stringify({
-        question_id: selectedQuestion.data.question_id,
-        code,
-        session_id
-      })
-    });
-
-    const data = await res.json();
+    
     if (res.ok) {
-      doneQuestions[selectedQuestion.data.question_id] = data.result;
-      selectedQuestion.element.classList.add("done");
-      alert("📥 Bài đã được nộp!");
-      codeInput.disabled = true;
-    } else {
-      alert("❌ Có lỗi xảy ra: " + data.error);
-      submitBtn.disabled = false;
+        const data = await res.json();
+        resultsTracking[selectedQ.question_id] = data.isCorrect ? 'Đúng' : 'Sai';
+        alert("📥 Đã nộp bài!");
+        document.getElementById(`q-${selectedQ.question_id}`).classList.add('done');
+        
+        // XÓA NỘI DUNG MÀN HÌNH SOẠN THẢO THEO YÊU CẦU
+        editor.value = ""; 
     }
-  };
+  }
 
-  finishBtn.onclick = () => {
+  function handleFinish() {
     const total = questions.length;
-    const done = Object.keys(doneQuestions).length;
+    const done = Object.keys(resultsTracking).length;
     let correct = 0;
-
-    for (let qid in doneQuestions) {
-      if (doneQuestions[qid].includes("✅")) correct++;
-    }
-
+    for(let id in resultsTracking) if(resultsTracking[id] === 'Đúng') correct++;
     const incorrect = done - correct;
+    const notDone = total - done;
+
     const summary = `📊 Kết quả:
 ✅ Đúng: ${correct}
 ❌ Sai: ${incorrect}
-📌 Chưa làm: ${total - done}`;
+📌 Chưa làm: ${notDone}
 
-    if (confirm(summary + "\n\n👉 Bạn có muốn thoát ra không?")) {
-      localStorage.removeItem("session_id");
-      localStorage.removeItem("startTime");
-      window.location.href = "role-select.html";
+👉 Bạn có muốn thoát ra không?`;
+
+    if (confirm(summary)) {
+        localStorage.removeItem("session_id");
+        window.location.href = "role-select.html";
     }
-  };
-
-  
+  }
 </script>
 </body>
 </html>

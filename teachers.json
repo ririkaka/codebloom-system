@@ -1,17 +1,12 @@
 [
   {
-    "teacher_id": "t1",
-    "t_name": "ddd",
-    "t_password": 123
+    "teacher_id": "001",
+    "t_name": "Nguyen Thi Cam Tu",
+    "t_password": "123"
   },
   {
-    "teacher_id": "t2",
-    "t_name": "eee",
-    "t_password": 456
-  },
-  {
-    "teacher_id": "t3",
-    "t_name": "fff",
-    "t_password": 789
+    "teacher_id": "002",
+    "t_name": "Le Tran Thao Nguyen",
+    "t_password": "123"
   }
 ]
