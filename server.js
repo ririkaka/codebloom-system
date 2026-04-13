@@ -11,12 +11,12 @@ const app = express();
 app.use(express.json());
 app.use(cors());
 
-// Kết nối MongoDB - Sử dụng biến môi trường để bảo mật
+// Kết nối MongoDB
 mongoose.connect(process.env.MONGODB_URI)
     .then(() => console.log('✅ Kết nối thành công MongoDB'))
     .catch(err => console.error('❌ Lỗi kết nối:', err));
 
-// Định nghĩa Cấu trúc dữ liệu
+// Định nghĩa Models
 const Question = mongoose.model('Question', new mongoose.Schema({
     question_id: String,
     content: String,
@@ -32,7 +32,7 @@ const Result = mongoose.model('Result', new mongoose.Schema({
     submittedAt: { type: Date, default: Date.now }
 }), 'results');
 
-// [FIX] API lấy danh sách câu hỏi
+// API: Lấy danh sách câu hỏi
 app.get('/api/questions', async (req, res) => {
     try {
         const questions = await Question.find({});
@@ -42,7 +42,7 @@ app.get('/api/questions', async (req, res) => {
     }
 });
 
-// [FIX] API lấy kết quả để tính toán bảng thống kê
+// API: Lấy toàn bộ kết quả (để tính toán thống kê)
 app.get('/api/results', async (req, res) => {
     try {
         const results = await Result.find({});
@@ -52,7 +52,7 @@ app.get('/api/results', async (req, res) => {
     }
 });
 
-// API Chấm bài C
+// API: Chấm bài ngôn ngữ C
 app.post('/api/submit', async (req, res) => {
     const { student_id, question_id, session_id, code } = req.body;
     const question = await Question.findOne({ question_id });
@@ -86,11 +86,18 @@ app.post('/api/submit', async (req, res) => {
                         child.stdin.end();
                     }
                 });
-                if (output !== tc.expected.trim()) { allPassed = false; break; }
-            } catch { allPassed = false; break; }
+
+                if (output !== tc.expected.trim()) {
+                    allPassed = false;
+                    break;
+                }
+            } catch {
+                allPassed = false;
+                break;
+            }
         }
 
-        // Cập nhật kết quả vào DB
+        // Cập nhật kết quả vào MongoDB
         await Result.updateOne(
             { student_id, question_id, session_id },
             { correct: allPassed, code, submittedAt: new Date() },
@@ -99,9 +106,9 @@ app.post('/api/submit', async (req, res) => {
 
         if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
         if (fs.existsSync(exePath)) fs.unlinkSync(exePath);
+
         res.json({ isCorrect: allPassed });
     });
 });
 
-const PORT = process.env.PORT || 10000;
-app.listen(PORT, "0.0.0.0", () => console.log(`🚀 Server đang chạy tại cổng ${PORT}`));
+app.listen(10000, "0.0.0.0", () => console.log('🚀 Server đang chạy tại cổng 10000'));

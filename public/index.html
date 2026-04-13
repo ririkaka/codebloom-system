@@ -6,11 +6,11 @@
     <style>
         :root { --primary: #007bff; --success: #28a745; --bg: #f4f7f6; }
         body { font-family: 'Segoe UI', sans-serif; margin: 0; display: flex; height: 100vh; background: var(--bg); overflow: hidden; }
-        .sidebar { width: 320px; background: white; border-right: 1px solid #ddd; padding: 20px; display: flex; flex-direction: column; }
+        .sidebar { width: 320px; background: white; border-right: 1px solid #ddd; padding: 20px; overflow-y: auto; }
         .question-card { background: #fff; border: 1px solid #eee; border-radius: 8px; padding: 15px; margin-bottom: 10px; cursor: pointer; }
-        .question-card.active { border-left: 5px solid var(--primary); background: #f0f7ff; font-weight: bold; }
+        .question-card.active { border-left: 5px solid var(--primary); background: #f0f7ff; }
         .main-content { flex: 1; display: flex; flex-direction: column; padding: 25px; }
-        #code-editor { flex: 1; background: #1e1e1e; color: #d4d4d4; padding: 20px; font-family: monospace; font-size: 16px; border-radius: 8px; border: none; outline: none; }
+        #code-editor { flex: 1; background: #1e1e1e; color: #d4d4d4; padding: 20px; font-family: monospace; font-size: 16px; border-radius: 8px; border: none; outline: none; resize: none; }
         .modal { position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); display:none; justify-content:center; align-items:center; z-index:1000; }
         .modal-box { background:white; padding:30px; border-radius:15px; width:350px; text-align:center; }
         .btn { padding: 10px 25px; border: none; border-radius: 5px; font-weight: bold; cursor: pointer; color: white; margin-top: 10px; }
@@ -19,26 +19,25 @@
 <body>
 
 <div class="sidebar">
-    <h3>📂 Danh sách câu hỏi</h3>
-    <input type="text" id="session_id" value="PHIEN_1" style="width:100%; margin-bottom:15px; padding:8px; border:1px solid #ccc; border-radius:4px;">
-    <div id="question-list">Đang tải câu hỏi...</div>
+    <h3>📋 Câu hỏi C</h3>
+    <input type="text" id="session_id" value="PHIEN_1" style="width:100%; margin-bottom:10px; padding:5px;">
+    <div id="question-list">Đang tải...</div>
 </div>
 
 <div class="main-content">
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-        <h3 id="q-title">Vui lòng chọn một câu hỏi</h3>
-        <div style="font-size:20px; font-weight:bold;">⏳ Còn lại: <span id="timer">30:00</span></div>
+    <div style="display:flex; justify-content:space-between; align-items:center">
+        <h3 id="q-title">Chọn câu hỏi</h3>
+        <div style="font-size:20px">⏳ <span id="timer">30:00</span></div>
     </div>
-    <div id="q-content" style="background:#eef2f7; padding:15px; border-radius:8px; margin-bottom:15px; color:#333;"></div>
+    <div id="q-content" style="background:#eef2f7; padding:15px; border-radius:8px; margin-bottom:15px"></div>
     <textarea id="code-editor" spellcheck="false">#include <stdio.h>
 
 int main() {
-    // Viết chương trình C của bạn tại đây
-    
+    // Viết code C của bạn tại đây
     return 0;
 }</textarea>
-    <div id="status-msg" style="margin: 10px 0; font-weight:bold;"></div>
-    <div style="display:flex; gap:10px;">
+    <div id="status-msg" style="margin: 10px 0; font-weight:bold"></div>
+    <div style="display:flex; gap:10px">
         <button class="btn" style="background:var(--primary)" onclick="submitCode()">Nộp bài</button>
         <button class="btn" style="background:var(--success)" onclick="finishExam()">Xong</button>
     </div>
@@ -46,12 +45,13 @@ int main() {
 
 <div id="resultModal" class="modal">
     <div class="modal-box">
-        <h2 style="margin-top:0">📊 Kết quả bài làm</h2>
-        <div style="text-align:left; font-size:18px; margin: 20px 0;">
-            <p>✅ Đúng: <span id="res-correct" style="color:green; font-weight:bold">0</span></p>
-            <p>❌ Sai: <span id="res-wrong" style="color:red; font-weight:bold">0</span></p>
-            <p>📌 Chưa làm: <span id="res-pending" style="color:orange; font-weight:bold">0</span></p>
+        <h2>📊 Kết quả</h2>
+        <div style="text-align:left; font-size:18px">
+            <p>✅ Đúng: <span id="res-correct" style="color:green">0</span></p>
+            <p>❌ Sai: <span id="res-wrong" style="color:red">0</span></p>
+            <p>📌 Chưa làm: <span id="res-pending" style="color:orange">0</span></p>
         </div>
+        <hr>
         <button class="btn" style="background:var(--primary); width:100%" onclick="location.href='role-select.html'">Hoàn tất</button>
     </div>
 </div>
@@ -62,63 +62,52 @@ int main() {
     const student_id = localStorage.getItem("student_id") || "001";
 
     async function loadData() {
-        try {
-            const res = await fetch('/api/questions');
-            questions = await res.json();
-            document.getElementById("question-list").innerHTML = questions.map(q => `
-                <div class="question-card" id="card-${q.question_id}" onclick="selectQ('${q.question_id}','${encodeURIComponent(q.content)}')">
-                    <strong>${q.question_id}</strong>: ${q.content.substring(0,30)}...
-                </div>
-            `).join('');
-        } catch (e) { document.getElementById("question-list").innerText = "Lỗi tải câu hỏi!"; }
+        const res = await fetch('/api/questions');
+        questions = await res.json();
+        document.getElementById("question-list").innerHTML = questions.map(q => `
+            <div class="question-card" id="card-${q.question_id}" onclick="selectQ('${q.question_id}','${encodeURIComponent(q.content)}')">
+                <strong>${q.question_id}</strong>: ${q.content.substring(0,30)}...
+            </div>
+        `).join('');
     }
 
     function selectQ(id, content) {
         currentQId = id;
-        document.getElementById("q-title").innerText = "Đang làm bài: " + id;
+        document.getElementById("q-title").innerText = "Đang làm: " + id;
         document.getElementById("q-content").innerText = decodeURIComponent(content);
         document.querySelectorAll('.question-card').forEach(c => c.classList.remove('active'));
         document.getElementById('card-'+id).classList.add('active');
     }
 
     async function submitCode() {
-        if(!currentQId) return alert("Bạn chưa chọn câu hỏi!");
+        if(!currentQId) return alert("Hãy chọn bài!");
         const status = document.getElementById("status-msg");
         status.innerText = "⏳ Đang chấm bài...";
         
-        try {
-            const res = await fetch('/api/submit', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ 
-                    student_id, 
-                    question_id: currentQId, 
-                    session_id: document.getElementById("session_id").value, 
-                    code: document.getElementById("code-editor").value 
-                })
-            });
-            const data = await res.json();
-            status.innerText = data.isCorrect ? "✅ CHÍNH XÁC!" : "❌ CHƯA ĐÚNG!";
-            status.style.color = data.isCorrect ? "green" : "red";
-        } catch (e) { status.innerText = "⚠️ Lỗi kết nối!"; }
+        const res = await fetch('/api/submit', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ student_id, question_id: currentQId, session_id: document.getElementById("session_id").value, code: document.getElementById("code-editor").value })
+        });
+        const data = await res.json();
+        status.innerText = data.isCorrect ? "✅ CHÍNH XÁC!" : "❌ CHƯA ĐÚNG!";
+        status.style.color = data.isCorrect ? "green" : "red";
     }
 
     async function finishExam() {
-        try {
-            const res = await fetch('/api/results');
-            const data = await res.json();
-            const sid = document.getElementById("session_id").value;
+        const res = await fetch('/api/results');
+        const data = await res.json();
+        const sid = document.getElementById("session_id").value;
 
-            const myResults = data.filter(r => r.student_id === student_id && r.session_id === sid);
-            const correct = myResults.filter(r => r.correct === true).length;
-            const wrong = myResults.filter(r => r.correct === false).length;
-            const pending = questions.length - (correct + wrong);
+        const myResults = data.filter(r => r.student_id === student_id && r.session_id === sid);
+        const correct = myResults.filter(r => r.correct === true).length;
+        const wrong = myResults.filter(r => r.correct === false).length;
+        const pending = questions.length - (correct + wrong);
 
-            document.getElementById("res-correct").innerText = correct;
-            document.getElementById("res-wrong").innerText = wrong;
-            document.getElementById("res-pending").innerText = pending > 0 ? pending : 0;
-            document.getElementById("resultModal").style.display = "flex";
-        } catch (e) { alert("Lỗi khi truy xuất bảng điểm!"); }
+        document.getElementById("res-correct").innerText = correct;
+        document.getElementById("res-wrong").innerText = wrong;
+        document.getElementById("res-pending").innerText = pending > 0 ? pending : 0;
+        document.getElementById("resultModal").style.display = "flex";
     }
 
     loadData();
