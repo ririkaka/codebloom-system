@@ -3,86 +3,111 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hệ thống Quản trị CodeBloom | Báo cáo Nhận thức</title>
+    <title>CODEBLOOM ADMIN PANEL</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
         :root { 
-            --primary: #007bff; --success: #28a745; --danger: #dc3545; 
-            --warning: #ffc107; --bg: #f8f9fa; --text: #333;
+            --primary: #007bff; 
+            --bg: #f4f7f6; 
+            --text: #333; 
+            --success: #2ecc71;
+            --danger: #e74c3c;
         }
+        body { font-family: 'Inter', sans-serif; background-color: var(--bg); margin: 0; padding: 20px; color: var(--text); }
+        .container { max-width: 1400px; margin: auto; }
 
-        body { font-family: 'Inter', 'Segoe UI', sans-serif; background-color: var(--bg); margin: 0; padding: 20px; color: var(--text); }
-        .container { max-width: 1400px; margin: auto; background: white; padding: 25px; border-radius: 16px; box-shadow: 0 10px 40px rgba(0,0,0,0.05); }
+        /* Header */
+        .header { display: flex; justify-content: space-between; align-items: center; background: white; padding: 15px 25px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); margin-bottom: 25px; }
+        .header h2 { color: var(--primary); margin: 0; font-size: 22px; display: flex; align-items: center; gap: 10px; }
+        .btn-logout { background: #e74c3c; color: white; border: none; padding: 8px 20px; border-radius: 8px; cursor: pointer; font-weight: 600; display: flex; align-items: center; gap: 8px; transition: 0.2s; }
+        .btn-logout:hover { background: #c0392b; }
 
-        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 2px solid #eee; }
-        .header h2 { margin: 0; color: var(--primary); display: flex; align-items: center; gap: 10px; }
-        .btn-logout { background: var(--danger); color: white; border: none; padding: 10px 18px; border-radius: 8px; cursor: pointer; font-weight: bold; transition: 0.3s; }
-
-        /* Dashboard 5 Mức độ */
-        .dashboard-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 35px; }
-        .stat-card { background: #fff; padding: 20px; border-radius: 12px; border: 1px solid #eee; text-align: center; transition: 0.3s; border-bottom: 5px solid #ddd; }
-        .stat-card i { font-size: 24px; margin-bottom: 10px; display: block; }
+        /* Dashboard Stat Cards */
+        .dashboard-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 15px; margin-bottom: 30px; }
+        .stat-card { background: white; padding: 25px 15px; border-radius: 16px; text-align: center; border-bottom: 6px solid #ddd; transition: transform 0.2s; }
+        .stat-card:hover { transform: translateY(-5px); }
+        .stat-card i { font-size: 28px; margin-bottom: 15px; display: block; }
+        .stat-label { font-size: 14px; font-weight: 700; text-transform: uppercase; color: #666; }
+        .stat-value { font-size: 32px; font-weight: 800; margin: 10px 0; color: #333; }
+        .stat-desc { font-size: 12px; color: #999; }
         
-        .card-nho { color: #6c757d; }
-        .card-hieu { color: #17a2b8; }
-        .card-vandung { color: #fd7e14; }
-        .card-phantich { color: #6610f2; }
-        .card-sangtao { color: #e83e8c; }
+        /* Định dạng màu sắc từng mức độ */
+        .card-nho { border-bottom-color: #4cd137; } .card-nho i { color: #8e8e8e; }
+        .card-hieu { border-bottom-color: #4cd137; } .card-hieu i { color: #00a8ff; }
+        .card-vandung { border-bottom-color: #4cd137; } .card-vandung i { color: #f0932b; }
+        .card-phantich { border-bottom-color: #4cd137; } .card-phantich i { color: #9c88ff; }
+        .card-sangtao { border-bottom-color: #4cd137; } .card-sangtao i { color: #eb4d4b; }
+
+        /* Bảng hiển thị dữ liệu */
+        .section-title { font-size: 18px; font-weight: 700; margin: 30px 0 15px 0; display: flex; align-items: center; gap: 10px; }
+        .table-wrapper { background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+        table { width: 100%; border-collapse: collapse; background: white; }
+        th { background: #f8f9fa; padding: 15px; font-size: 13px; color: #444; border-bottom: 2px solid #eee; text-align: center; text-transform: uppercase; }
+        td { padding: 12px; text-align: center; border-bottom: 1px solid #eee; font-size: 14px; font-weight: 500; }
         
-        .stat-value { font-size: 28px; font-weight: 800; margin: 5px 0; }
-        .stat-label { font-size: 13px; font-weight: bold; text-transform: uppercase; color: #777; }
-        .stat-desc { font-size: 11px; margin-top: 5px; color: #999; }
-
-        .stat-card.critical { border-bottom-color: var(--danger); background: #fff5f5; }
-        .stat-card.achieved { border-bottom-color: var(--success); background: #f0fff4; }
-
-        /* Tables */
-        .table-section { margin-top: 20px; }
-        .table-wrapper { overflow-x: auto; border-radius: 8px; border: 1px solid #eee; }
-        table { width: 100%; border-collapse: collapse; min-width: 1000px; }
-        th { background: #f1f3f5; padding: 15px; font-size: 13px; text-align: center; border: 1px solid #dee2e6; }
-        td { padding: 12px; text-align: center; border: 1px solid #dee2e6; font-size: 14px; }
-        tr:hover { background: #f8fbff; }
-
+        /* Trạng thái đúng/sai */
         .status-ok { color: var(--success); font-weight: bold; }
         .status-no { color: var(--danger); font-weight: bold; }
-        select { padding: 5px; border-radius: 4px; border: 1px solid #ccc; }
+        
+        /* Dropdown phiên làm bài */
+        .form-select-sm { 
+            padding: 5px; 
+            border-radius: 5px; 
+            border: 1px solid #00a8ff; 
+            font-size: 12px; 
+            cursor: pointer;
+            outline: none;
+        }
+
+        /* Bảng mức độ nhận thức */
+        .eval-table td:last-child { text-align: left; padding-left: 25px; color: #555; font-style: normal; }
+        .badge-count { 
+            background: var(--primary); 
+            color: white; 
+            padding: 4px 12px; 
+            border-radius: 20px; 
+            font-weight: 700; 
+            font-size: 14px;
+        }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <div class="header">
+    <header class="header">
         <h2><i class="fas fa-chart-line"></i> CODEBLOOM ADMIN PANEL</h2>
-        <button class="btn-logout" onclick="logout()"><i class="fas fa-power-off"></i> Thoát</button>
-    </div>
+        <button class="btn-logout" onclick="location.href='/logout'">
+            <i class="fas fa-power-off"></i> Thoát
+        </button>
+    </header>
 
-    <div class="dashboard-grid" id="cognitive-dashboard">
-        <div class="stat-card card-nho" id="card-nho">
+    <div class="dashboard-grid">
+        <div class="stat-card card-nho" id="card-Nhớ">
             <i class="fas fa-brain"></i>
             <div class="stat-label">Nhớ</div>
             <div class="stat-value" id="val-nho">0%</div>
             <div class="stat-desc">Định nghĩa & Cú pháp</div>
         </div>
-        <div class="stat-card card-hieu" id="card-hieu">
+        <div class="stat-card card-hieu" id="card-Hiểu">
             <i class="fas fa-lightbulb"></i>
             <div class="stat-label">Hiểu</div>
             <div class="stat-value" id="val-hieu">0%</div>
             <div class="stat-desc">Giải thích thuật toán</div>
         </div>
-        <div class="stat-card card-vandung" id="card-vandung">
+        <div class="stat-card card-vandung" id="card-Vận dụng">
             <i class="fas fa-tools"></i>
             <div class="stat-label">Vận dụng</div>
             <div class="stat-value" id="val-vandung">0%</div>
             <div class="stat-desc">Giải quyết vấn đề</div>
         </div>
-        <div class="stat-card card-phantich" id="card-phantich">
+        <div class="stat-card card-phantich" id="card-Phân tích">
             <i class="fas fa-microscope"></i>
             <div class="stat-label">Phân tích</div>
             <div class="stat-value" id="val-phantich">0%</div>
             <div class="stat-desc">Tối ưu mã nguồn</div>
         </div>
-        <div class="stat-card card-sangtao" id="card-sangtao">
+        <div class="stat-card card-sangtao" id="card-Sáng tạo">
             <i class="fas fa-rocket"></i>
             <div class="stat-label">Sáng tạo</div>
             <div class="stat-value" id="val-sangtao">0%</div>
@@ -90,41 +115,51 @@
         </div>
     </div>
 
-    <div class="table-section">
-        <h3><i class="fas fa-table"></i> Bảng Kết Quả Chi Tiết</h3>
-        <div class="table-wrapper">
-            <table>
-                <thead>
-                    <tr id="header-row">
-                        <th>Mã SV</th>
-                        <th>Họ tên</th>
-                        <th>Đúng</th>
-                        <th>Sai</th>
-                        <th>Phiên bài làm</th>
-                    </tr>
-                </thead>
-                <tbody id="data-body"></tbody>
-            </table>
-        </div>
+    <div class="section-title"><i class="fas fa-table"></i> Bảng Kết Quả Chi Tiết</div>
+    <div class="table-wrapper">
+        <table>
+            <thead>
+                <tr>
+                    <th width="80px">Mã SV</th>
+                    <th width="180px">Họ tên</th>
+                    <th>Q001</th><th>Q002</th><th>Q003</th><th>Q004</th><th>Q005</th>
+                    <th>Q006</th><th>Q007</th><th>Q008</th><th>Q009</th><th>Q010</th>
+                    <th style="color: var(--success);">Đúng</th>
+                    <th style="color: var(--danger);">Sai</th>
+                    <th width="150px">Phiên bài làm</th>
+                </tr>
+            </thead>
+            <tbody id="data-body">
+                </tbody>
+        </table>
     </div>
 
-    <div class="table-section" style="margin-top: 40px;">
-        <h3><i class="fas fa-users"></i> Danh Sách HS Theo Mức Độ</h3>
-        <div class="table-wrapper">
-            <table>
-                <thead>
-                    <tr>
-                        <th>Mức độ nhận thức</th>
-                        <th>Số lượng đạt</th>
-                        <th>Danh sách học sinh</th>
-                    </tr>
-                </thead>
-                <tbody id="evaluation-body"></tbody>
-            </table>
-        </div>
+    <div class="section-title"><i class="fas fa-users"></i> Danh Sách HS Theo Mức Độ</div>
+    <div class="table-wrapper">
+        <table class="eval-table">
+            <thead>
+                <tr>
+                    <th width="18%">Mức độ nhận thức</th>
+                    <th width="12%">Số lượng đạt</th>
+                    <th>Danh sách học sinh (Đạt ≥ 80% câu hỏi ở phiên cuối)</th>
+                </tr>
+            </thead>
+            <tbody id="evaluation-body">
+                </tbody>
+        </table>
     </div>
 </div>
 
 <script src="admin.js"></script>
+
+<script>
+    // Hàm hỗ trợ đăng xuất nếu chưa có trong admin.js
+    function logout() {
+        if(confirm('Bạn có chắc chắn muốn thoát hệ thống?')) {
+            window.location.href = '/logout';
+        }
+    }
+</script>
+
 </body>
 </html>

@@ -1,28 +1,200 @@
-// Phần Script trong file teacher-login.html
-document.getElementById('teacherForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const msg = document.getElementById('msg');
-    const teacher_id = document.getElementById('teacher_id').value.trim();
-    const password = document.getElementById('password').value;
-
-    try {
-        const response = await fetch('/api/teacher-login', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ teacher_id, password })
-        });
-
-        const data = await response.json();
-        if (response.ok) {
-            localStorage.setItem("teacher_token", data.token);
-            localStorage.setItem("teacher_name", data.name);
-            window.location.href = "admin.html";
-        } else {
-            msg.innerHTML = `❌ ${data.error}`;
-            msg.style.display = 'flex';
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Đăng nhập Giáo viên - CodeBloom</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --primary-color: #007bff;
+            --error-bg: #fff1f0;
+            --error-border: #ffccc7;
+            --error-text: #ff4d4f;
         }
-    } catch (err) {
-        msg.innerHTML = `❌ Lỗi kết nối đến máy chủ!`;
-        msg.style.display = 'flex';
-    }
-});
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f2f5; /* Nền xám nhạt như hình */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        .login-card {
+            background: #ffffff;
+            padding: 40px;
+            border-radius: 16px; /* Bo góc mạnh như hình */
+            box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+        }
+
+        h2 {
+            color: #1c1e21;
+            margin-bottom: 24px;
+            font-size: 24px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .input-group {
+            text-align: left;
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #4b4f56;
+            font-size: 14px;
+        }
+
+        input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1px solid #dddfe2;
+            border-radius: 8px;
+            font-size: 16px;
+            box-sizing: border-box;
+            transition: all 0.3s;
+            background: #ffffff;
+        }
+
+        input:focus {
+            border-color: var(--primary-color);
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(0,123,255,0.2);
+        }
+
+        button {
+            width: 100%;
+            padding: 14px;
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 8px; /* Bo góc nút bấm như hình */
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.3s;
+            margin-top: 10px;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        button:disabled {
+            background-color: #e4e6eb;
+            color: #bcc0c4;
+            cursor: not-allowed;
+        }
+
+        /* Thông báo lỗi kiểu bo tròn nền đỏ nhạt như hình */
+        #msg {
+            margin-top: 20px;
+            padding: 12px;
+            border-radius: 12px;
+            display: none; /* Ẩn mặc định */
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            font-size: 14px;
+            background-color: var(--error-bg);
+            color: var(--error-text);
+            border: 1px solid var(--error-border);
+        }
+
+        .back-link {
+            display: block;
+            margin-top: 24px;
+            color: var(--primary-color);
+            text-decoration: none;
+            font-size: 14px;
+            transition: opacity 0.3s;
+        }
+
+        .back-link:hover {
+            text-decoration: underline;
+            opacity: 0.8;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="login-card">
+        <h2>👨‍🏫 Đăng nhập Giáo viên</h2>
+        
+        <form id="teacherForm">
+            <div class="input-group">
+                <label for="teacher_id">Mã giáo viên</label>
+                <input type="text" id="teacher_id" placeholder="Ví dụ: 001" required>
+            </div>
+            
+            <div class="input-group">
+                <label for="password">Mật khẩu</label>
+                <input type="password" id="password" placeholder="••••••••" required>
+            </div>
+            
+            <button type="submit" id="teacherBtn">Đăng nhập</button>
+        </form>
+
+        <div id="msg"></div>
+
+        <a href="role-select.html" class="back-link">← Quay lại chọn vai trò</a>
+    </div>
+
+    <script>
+        document.getElementById('teacherForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const msg = document.getElementById('msg');
+            const btn = document.getElementById('teacherBtn');
+            const teacher_id = document.getElementById('teacher_id').value.trim();
+            const password = document.getElementById('password').value;
+
+            // Reset trạng thái
+            msg.style.display = 'none';
+            btn.disabled = true;
+            btn.innerText = "Đang xác thực...";
+
+            try {
+                // Sử dụng đường dẫn tương đối để chạy tốt trên Render
+                const response = await fetch('/api/teacher-login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ teacher_id, password })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    localStorage.setItem("teacher_token", data.token);
+                    localStorage.setItem("teacher_name", data.name);
+                    window.location.href = "admin.html";
+                } else {
+                    // Hiển thị lỗi theo phong cách hình 7
+                    msg.style.display = 'flex';
+                    msg.innerHTML = `<i class="fas fa-times-circle"></i> ${data.error}`;
+                    btn.disabled = false;
+                    btn.innerText = "Đăng nhập";
+                }
+            } catch (err) {
+                msg.style.display = 'flex';
+                msg.innerHTML = `<i class="fas fa-exclamation-triangle"></i> Lỗi kết nối đến Server.`;
+                btn.disabled = false;
+                btn.innerText = "Đăng nhập";
+            }
+        });
+    </script>
+</body>
+</html>
