@@ -1,27 +1,25 @@
-# Sử dụng bản ổn định (LTS) để tránh lỗi module
+# Sử dụng bản ổn định cao
 FROM node:20-bookworm-slim
 
-# Cài đặt GCC và các công cụ biên dịch
+# Cài đặt trình biên dịch GCC cho ngôn ngữ C
 RUN apt-get update && apt-get install -y \
     gcc \
     g++ \
     make \
     && rm -rf /var/lib/apt/lists/*
 
-# Tạo thư mục làm việc
 WORKDIR /usr/src/app
 
-# Chỉ copy file package trước để tối ưu build
+# Chỉ copy package.json để cài thư viện trước (tối ưu cache)
 COPY package*.json ./
 
-# Xóa cache và cài đặt mới hoàn toàn thư viện
+# Ép cài đặt mới hoàn toàn, bỏ qua cache lỗi
 RUN npm cache clean --force && npm install
 
-# Copy toàn bộ code còn lại
+# Copy toàn bộ mã nguồn
 COPY . .
 
-# Mở cổng 10000
+# Mở cổng cho Render
 EXPOSE 10000
 
-# Chạy server
 CMD ["node", "server.js"]
