@@ -2,130 +2,89 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const path = require('path');
-const { exec } = require('child_process');
-const fs = require('fs');
 const { v4: uuidv4 } = require('uuid');
+const bcrypt = require('bcrypt');
 require('dotenv').config();
 
 const app = express();
 app.use(express.json());
 app.use(cors());
 
-// --- [SỬA LỖI CANNOT GET] PHỤC VỤ FILE TĨNH ---
-// Đảm bảo các file html của bạn nằm trong thư mục tên là 'public'
+// 1. Phục vụ file tĩnh từ thư mục 'public'
 app.use(express.static(path.join(__dirname, 'public')));
 
-// --- KẾT NỐI DATABASE ---
+// 2. Kết nối MongoDB
 mongoose.connect(process.env.MONGODB_URI)
-    .then(() => console.log('✅ Đã kết nối MongoDB thành công'))
+    .then(() => console.log('✅ Kết nối MongoDB thành công'))
     .catch(err => console.error('❌ Lỗi kết nối DB:', err));
 
-// --- ĐỊNH NGHĨA SCHEMA ---
-const Question = mongoose.model('Question', new mongoose.Schema({
-    question_id: String,
-    content: String,
-    test_cases: [{ input: String, expected: String }]
-}), 'questions');
+// 3. Định nghĩa Schemas
+const teacherSchema = new mongoose.Schema({
+    teacher_id: String,
+    t_name: String,
+    t_password: String 
+});
+const Teacher = mongoose.model('Teacher', teacherSchema, 'teachers');
 
-const Result = mongoose.model('Result', new mongoose.Schema({
+const studentSchema = new mongoose.Schema({
     student_id: String,
-    question_id: String,
-    correct: Boolean,
-    session_id: String,
-    code: String,
-    submittedAt: { type: Date, default: Date.now }
-}), 'results');
-
-// --- CÁC API XỬ LÝ DỮ LIỆU ---
-
-// [SỬA LỖI TẢI CÂU HỎI]
-app.get('/api/questions', async (req, res) => {
-    try {
-        const questions = await Question.find({});
-        res.json(questions);
-    } catch (err) {
-        res.status(500).json({ error: "Không thể lấy dữ liệu câu hỏi" });
-    }
+    name: String,
+    password: String
 });
+const Student = mongoose.model('Student', studentSchema, 'students');
 
-// [SỬA LỖI TRUY XUẤT BẢNG ĐIỂM/THỐNG KÊ]
-app.get('/api/results', async (req, res) => {
+// 4. API Đăng nhập Giáo viên (Giải mã Bcrypt)
+app.post('/api/teacher-login', async (req, res) => {
     try {
-        const results = await Result.find({});
-        res.json(results);
-    } catch (err) {
-        res.status(500).json({ error: "Không thể lấy bảng điểm" });
-    }
-});
-
-// API CHẤM BÀI CODE C
-app.post('/api/submit', async (req, res) => {
-    const { student_id, question_id, session_id, code } = req.body;
-    const question = await Question.findOne({ question_id });
-
-    if (!question) return res.status(404).json({ error: "Không tìm thấy câu hỏi" });
-
-    const id = uuidv4();
-    const tempDir = '/tmp'; // Dùng thư mục /tmp để chạy được trên Render
-    const filePath = path.join(tempDir, `${id}.c`);
-    const exePath = path.join(tempDir, id);
-
-    fs.writeFileSync(filePath, code);
-
-    // Biên dịch GCC
-    exec(`gcc "${filePath}" -o "${exePath}"`, async (compileErr) => {
-        if (compileErr) {
-            if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
-            return res.json({ isCorrect: false, error: "Lỗi biên dịch code C" });
-        }
-
-        let allPassed = true;
-        for (let tc of question.test_cases) {
-            try {
-                const output = await new Promise((resolve, reject) => {
-                    const child = exec(`${exePath}`, { timeout: 2000 }, (runErr, stdout) => {
-                        if (runErr) reject(runErr);
-                        else resolve(stdout.trim());
-                    });
-                    if (tc.input) {
-                        child.stdin.write(tc.input + "\n");
-                        child.stdin.end();
-                    }
-                });
-                if (output !== tc.expected.trim()) { allPassed = false; break; }
-            } catch { allPassed = false; break; }
-        }
-
-        // Lưu kết quả vào MongoDB
-        await Result.updateOne(
-            { student_id, question_id, session_id },
-            { correct: allPassed, code, submittedAt: new Date() },
-            { upsert: true }
-        );
-
-        // Dọn dẹp file tạm
-        if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
-        if (fs.existsSync(exePath)) fs.unlinkSync(exePath);
+        const { teacher_id, password } = req.body;
+        const teacher = await Teacher.findOne({ teacher_id });
         
-        res.json({ isCorrect: allPassed });
-    });
+        if (!teacher || !(await bcrypt.compare(password, teacher.t_password))) {
+            return res.status(401).json({ error: "Mã giáo viên hoặc mật khẩu không đúng!" });
+        }
+
+        res.json({ success: true, token: "tc-" + uuidv4(), name: teacher.t_name });
+    } catch (err) {
+        res.status(500).json({ error: "Lỗi hệ thống giáo viên" });
+    }
 });
 
-// --- [SỬA LỖI CANNOT GET] ĐIỀU HƯỚNG DỰ PHÒNG ---
-app.get('/teacher-login', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'teacher-login.html'));
+// 5. API Đăng nhập Học sinh
+app.post('/api/login', async (req, res) => {
+    try {
+        const { student_id, password } = req.body;
+        const student = await Student.findOne({ student_id });
+
+        if (!student) return res.status(401).json({ error: "Mã học sinh không tồn tại!" });
+
+        // Kiểm tra Bcrypt, nếu lỗi (do mật khẩu thuần) thì so sánh trực tiếp
+        let isMatch = false;
+        try {
+            isMatch = await bcrypt.compare(password, student.password);
+        } catch (e) {
+            isMatch = (password === student.password);
+        }
+
+        if (isMatch) {
+            res.json({ 
+                success: true, 
+                token: "st-" + uuidv4(), 
+                student_id: student.student_id, 
+                name: student.name,
+                session_id: uuidv4()
+            });
+        } else {
+            res.status(401).json({ error: "Mật khẩu không đúng!" });
+        }
+    } catch (err) {
+        res.status(500).json({ error: "Lỗi hệ thống học sinh" });
+    }
 });
 
-app.get('/login', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'login.html'));
-});
-
-// Chấp nhận mọi trang .html khác trong thư mục public
-app.get('/:page.html', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', `${req.params.page}.html`));
+// 6. Sửa lỗi "Cannot GET" - Chuyển mọi request không phải API về index.html
+app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 const PORT = process.env.PORT || 10000;
-app.listen(PORT, "0.0.0.0", () => {
-    console.log(`🚀 Server đang chạy tại cổng: ${PORT}`);
-});
+app.listen(PORT, "0.0.0.0", () => console.log(`🚀 Server chạy tại port ${PORT}`));
