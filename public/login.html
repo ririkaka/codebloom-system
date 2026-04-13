@@ -74,9 +74,6 @@
             text-decoration: none;
             font-size: 14px;
         }
-        .back-link:hover {
-            text-decoration: underline;
-        }
         #message {
             margin-top: 15px;
             font-size: 14px;
@@ -108,8 +105,8 @@
 </div>
 
 <script>
-    // 1. CẤU HÌNH API: Sử dụng cổng 10000 khớp với server.js
-    const API_BASE = window.location.origin; // Tự động lấy http://localhost:10000
+    // Tự động lấy origin của Render (ví dụ: https://codebloom-system.onrender.com)
+    const API_BASE = window.location.origin;
 
     document.getElementById("loginForm").onsubmit = async (e) => {
         e.preventDefault();
@@ -119,13 +116,12 @@
         const student_id = document.getElementById("student_id").value.trim();
         const password = document.getElementById("password").value;
 
-        // Trạng thái đang xử lý
         btn.disabled = true;
         btn.innerText = "Đang xác thực...";
         msgDiv.innerText = "";
 
         try {
-            // 2. GỌI API: Thêm /api/login để khớp với route trong server.js
+            // Gọi đến đúng endpoint /api/login mà chúng ta vừa thêm vào server.js
             const res = await fetch(`${API_BASE}/api/login`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -135,28 +131,27 @@
             const data = await res.json();
 
             if (res.ok && data.token) {
-                // 3. LƯU TRỮ: Lưu Token và thông tin vào LocalStorage
+                // LƯU TRỮ QUAN TRỌNG: Để các trang sau sử dụng
                 localStorage.setItem("student_token", data.token);
                 localStorage.setItem("student_id", data.student_id);
                 localStorage.setItem("student_name", data.name);
                 localStorage.setItem("session_id", data.session_id || "PHIEN_1");
 
                 msgDiv.style.color = "green";
-                msgDiv.innerText = "✅ Đăng nhập thành công! Đang chuyển hướng...";
+                msgDiv.innerText = "✅ Đăng nhập thành công!";
                 
                 setTimeout(() => {
-                    window.location.href = "index.html"; // Chuyển đến trang làm bài
-                }, 1000);
+                    window.location.href = "index.html"; // Chuyển đến trang danh sách bài tập
+                }, 800);
             } else {
                 msgDiv.style.color = "red";
-                msgDiv.innerText = "❌ " + (data.error || data.message || "Thông tin không chính xác");
+                msgDiv.innerText = "❌ " + (data.error || "Thông tin không chính xác");
                 btn.disabled = false;
                 btn.innerText = "Đăng nhập";
             }
         } catch (err) {
             msgDiv.style.color = "red";
-            msgDiv.innerText = "⚠️ Lỗi kết nối: Hãy đảm bảo bạn đã chạy 'node server.js'";
-            console.error("Fetch Error:", err);
+            msgDiv.innerText = "⚠️ Lỗi kết nối đến Server.";
             btn.disabled = false;
             btn.innerText = "Đăng nhập";
         }
