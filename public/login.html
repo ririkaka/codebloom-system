@@ -60,10 +60,21 @@
                 });
 
                 const data = await res.json();
+                
                 if (res.ok) {
+                    // --- PHẦN CHỈNH SỬA QUAN TRỌNG TẠI ĐÂY ---
+                    // Xóa dữ liệu cũ trước khi lưu dữ liệu mới để tránh bị dính tên cũ
+                    localStorage.clear(); 
+
                     localStorage.setItem("student_token", data.token);
                     localStorage.setItem("student_id", data.student_id);
-                    window.location.href = "index.html";
+                    
+                    // Lưu thêm student_name trả về từ Server
+                    // Lưu ý: Đảm bảo Server của bạn trả về trường 'name' hoặc 'full_name'
+                    localStorage.setItem("student_name", data.name || "Học sinh"); 
+                    
+                    // Chuyển hướng sang trang làm bài (hoặc index tùy cấu trúc của bạn)
+                    window.location.href = "index.html"; 
                 } else {
                     msgDiv.className = "error-msg";
                     msgDiv.innerHTML = `<i class="fas fa-times-circle"></i> ${data.error}`;
