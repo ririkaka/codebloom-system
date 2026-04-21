@@ -90,7 +90,10 @@
                         <input type="text" id="session_id" class="form-control fw-bold" readonly style="background-color: #fff;">
                         <button class="btn btn-primary" id="btn-start" onclick="startExam()">Bắt đầu</button>
                     </div>
+                    <div id="student-info" class="small text-muted fw-semibold">
+                        Học sinh: <span id="student-display">Đang tải...</span>
                     </div>
+                </div>
                 
                 <div id="question-list-container">
                     <h6 class="text-secondary fw-bold small text-uppercase">Danh sách câu hỏi</h6>
@@ -130,7 +133,9 @@
     let timeLeft = 30 * 60; 
     let timerInterval;
 
+    // Lấy thông tin ID và Tên học sinh từ localStorage
     const studentId = localStorage.getItem('student_id') || "HS001";
+    const studentName = localStorage.getItem('student_name') || "Học sinh";
 
     // --- CHỨC NĂNG CHỐNG COPY-PASTE ---
     function enableAntiCheat() {
@@ -153,6 +158,12 @@
     }
 
     async function initSession() {
+        // Cập nhật tên học sinh lên giao diện ngay khi khởi tạo
+        const displayElement = document.getElementById('student-display');
+        if (displayElement) {
+            displayElement.innerText = `${studentName} (${studentId})`;
+        }
+
         document.getElementById('btn-start').disabled = false;
 
         try {
