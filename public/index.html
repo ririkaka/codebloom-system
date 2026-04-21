@@ -90,8 +90,7 @@
                         <input type="text" id="session_id" class="form-control fw-bold" readonly style="background-color: #fff;">
                         <button class="btn btn-primary" id="btn-start" onclick="startExam()">Bắt đầu</button>
                     </div>
-                    <div id="student-info" class="small text-muted fw-semibold">Đang xác thực...</div>
-                </div>
+                    </div>
                 
                 <div id="question-list-container">
                     <h6 class="text-secondary fw-bold small text-uppercase">Danh sách câu hỏi</h6>
@@ -132,7 +131,6 @@
     let timerInterval;
 
     const studentId = localStorage.getItem('student_id') || "HS001";
-    const studentName = localStorage.getItem('student_name') || "Học sinh";
 
     // --- CHỨC NĂNG CHỐNG COPY-PASTE ---
     function enableAntiCheat() {
@@ -155,7 +153,6 @@
     }
 
     async function initSession() {
-        document.getElementById('student-info').innerText = `Học sinh: ${studentName} (${studentId})`;
         document.getElementById('btn-start').disabled = false;
 
         try {
@@ -248,14 +245,12 @@
         
         clearInterval(timerInterval);
         
-        // Lưu câu trả lời hiện tại trước khi nộp
         if (currentQuestionId) {
             studentAnswers[currentQuestionId] = document.getElementById('editor').value;
         }
 
         const currentSessionId = document.getElementById('session_id').value;
 
-        // 1. Gửi toàn bộ bài làm lên server để chấm
         const submitPromises = questions.map(q => {
             const answer = studentAnswers[q.question_id] || "";
             return fetch('/api/check-answer', {
@@ -272,7 +267,6 @@
 
         await Promise.all(submitPromises);
 
-        // 2. Lấy thống kê chi tiết từ API summary mới để hiển thị bảng kết quả
         try {
             const resSum = await fetch(`/api/session-summary/${studentId}/${currentSessionId}`);
             const data = await resSum.json();
