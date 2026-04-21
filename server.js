@@ -4,11 +4,19 @@ const cors = require('cors');
 const path = require('path');
 const { v4: uuidv4 } = require('uuid');
 const bcrypt = require('bcrypt');
+const { exec } = require('child_process'); // Thêm để chạy lệnh g++
+const fs = require('fs'); // Thêm để quản lý file
 require('dotenv').config();
 
 const app = express();
 app.use(express.json());
 app.use(cors());
+
+// Tự động tạo thư mục 'temp' nếu chưa có để tránh lỗi
+const tempDir = path.join(__dirname, 'temp');
+if (!fs.existsSync(tempDir)) {
+    fs.mkdirSync(tempDir);
+}
 
 // 1. Phục vụ file tĩnh từ thư mục 'public'
 app.use(express.static(path.join(__dirname, 'public')));
@@ -19,7 +27,6 @@ mongoose.connect(process.env.MONGODB_URI)
     .catch(err => console.error('❌ Lỗi kết nối DB:', err));
 
 // 3. Định nghĩa Schemas
-// Schema Giáo viên
 const teacherSchema = new mongoose.Schema({
     teacher_id: String,
     t_name: String,
@@ -27,7 +34,6 @@ const teacherSchema = new mongoose.Schema({
 });
 const Teacher = mongoose.model('Teacher', teacherSchema, 'teachers');
 
-// Schema Học sinh
 const studentSchema = new mongoose.Schema({
     student_id: String,
     name: String,
@@ -35,25 +41,38 @@ const studentSchema = new mongoose.Schema({
 });
 const Student = mongoose.model('Student', studentSchema, 'students');
 
-// Schema Câu hỏi
 const questionSchema = new mongoose.Schema({
     question_id: String,
     content: String,
     level: String,
-    test_cases: [{ input: String, output: String }] 
+    test_cases: [{ input: String, expected: String }] // Đổi 'output' thành 'expected' để khớp logic mới
 });
 const Question = mongoose.model('Question', questionSchema, 'questions');
 
-// Schema Kết quả bài làm
 const resultSchema = new mongoose.Schema({
     student_id: String,
     question_id: String,
     correct: Boolean, 
     answer: String,
+    score: String, // Thêm để lưu tỉ lệ test case đúng (ví dụ: 1/1)
     session_id: String,
     timestamp: { type: Date, default: Date.now }
 });
 const Result = mongoose.model('Result', resultSchema, 'results');
+
+// --- HÀM HỖ TRỢ CHẠY FILE C++ ---
+function runCode(exePath, input) {
+    return new Promise((resolve) => {
+        const child = exec(`"${exePath}"`, { timeout: 3000 }, (error, stdout, stderr) => {
+            if (error) resolve(stderr || ""); 
+            else resolve(stdout || "");
+        });
+        if (input) {
+            child.stdin.write(input + "\n");
+            child.stdin.end();
+        }
+    });
+}
 
 // 4. API Đăng nhập Giáo viên
 app.post('/api/teacher-login', async (req, res) => {
@@ -89,7 +108,7 @@ app.post('/api/login', async (req, res) => {
                 token: "st-" + uuidv4(), 
                 student_id: student.student_id, 
                 name: student.name,
-                session_id: "PHIEN_" + Date.now() 
+                session_id: "PHIÊN_" + Date.now() 
             });
         } else {
             res.status(401).json({ error: "Mật khẩu không đúng!" });
@@ -99,7 +118,7 @@ app.post('/api/login', async (req, res) => {
     }
 });
 
-// 6. API Lấy danh sách câu hỏi cho Học sinh làm bài
+// 6. API Lấy danh sách câu hỏi
 app.get('/api/questions', async (req, res) => {
     try {
         const questions = await Question.find();
@@ -109,58 +128,90 @@ app.get('/api/questions', async (req, res) => {
     }
 });
 
-// 7. API Chấm điểm và Lưu kết quả (Có phòng thủ dữ liệu)
+// 7. API CHẤM BÀI (ĐÃ CẢI TIẾN TÍCH HỢP G++)
 app.post('/api/check-answer', async (req, res) => {
+    const { student_id, question_id, answer, session_id } = req.body;
+    
     try {
-        const { student_id, question_id, answer, session_id } = req.body;
-
         const question = await Question.findOne({ question_id });
         if (!question) return res.status(404).json({ error: "Không tìm thấy câu hỏi" });
 
-        // PHÒNG THỦ DỮ LIỆU: Chống lỗi .trim() của undefined/null
-        const safeStudentAnswer = (answer || "").toString().trim();
-        
-        let isCorrect = false;
+        const safeCode = (answer || "").toString();
+        const fileId = uuidv4();
+        const cppPath = path.join(tempDir, `${fileId}.cpp`);
+        const exePath = path.join(tempDir, `${fileId}.exe`);
 
-        if (question.test_cases && 
-            question.test_cases.length > 0 && 
-            question.test_cases[0].output !== undefined) {
-            
-            const expectedOutput = question.test_cases[0].output.toString().trim();
-            isCorrect = (safeStudentAnswer === expectedOutput);
-        }
+        // 1. Lưu file tạm
+        fs.writeFileSync(cppPath, safeCode);
 
-        const newResult = new Result({
-            student_id,
-            question_id,
-            correct: isCorrect,
-            answer: safeStudentAnswer,
-            session_id,
-            timestamp: new Date()
+        // 2. Biên dịch bằng g++
+        exec(`g++ "${cppPath}" -o "${exePath}"`, async (compileError, stdout, stderr) => {
+            if (compileError) {
+                // Lỗi biên dịch (Compile Error)
+                if (fs.existsSync(cppPath)) fs.unlinkSync(cppPath);
+                return res.json({ success: true, correct: false, message: "Lỗi biên dịch!", details: stderr });
+            }
+
+            let passed = 0;
+            const testCases = question.test_cases || [];
+
+            // 3. Chạy các Test Case
+            for (let test of testCases) {
+                const output = await runCode(exePath, test.input);
+                // Dùng trim() để loại bỏ xuống dòng/dấu cách thừa
+                const expected = (test.expected || test.output || "").toString().trim();
+                if (output.trim() === expected) {
+                    passed++;
+                }
+            }
+
+            // 4. Dọn dẹp file
+            if (fs.existsSync(cppPath)) fs.unlinkSync(cppPath);
+            if (fs.existsSync(exePath)) fs.unlinkSync(exePath);
+
+            // 5. Lưu kết quả
+            const isCorrect = (testCases.length > 0 && passed === testCases.length);
+            const scoreDisplay = `${passed}/${testCases.length}`;
+
+            const newResult = new Result({
+                student_id,
+                question_id,
+                correct: isCorrect,
+                answer: safeCode,
+                score: scoreDisplay,
+                session_id,
+                timestamp: new Date()
+            });
+
+            await newResult.save();
+            res.json({ 
+                success: true, 
+                correct: isCorrect, 
+                passed, 
+                total: testCases.length,
+                message: isCorrect ? "Tuyệt vời! Bạn đã vượt qua tất cả bài kiểm tra." : `Bạn đúng ${passed}/${testCases.length} trường hợp.`
+            });
         });
 
-        await newResult.save();
-        res.json({ success: true, correct: isCorrect });
     } catch (err) {
-        console.error("❌ Lỗi chấm bài:", err.message);
-        res.status(500).json({ error: "Lỗi trong quá trình xử lý kết quả" });
+        console.error("❌ Lỗi hệ thống chấm bài:", err);
+        res.status(500).json({ error: "Lỗi trong quá trình chấm bài" });
     }
 });
 
-// 8. API Lấy dữ liệu cho Admin Panel (ĐÃ CẢI TIẾN: Lấy tên từ bảng Students)
+// 8. API Admin
 app.get('/api/admin/results', async (req, res) => {
     try {
-        // Sử dụng Aggregate để "Join" bảng results với bảng students
         const allResults = await Result.aggregate([
             {
                 $lookup: {
-                    from: 'students',           // Tìm trong collection 'students'
-                    localField: 'student_id',    // Trường student_id của bảng 'results'
-                    foreignField: 'student_id',  // Khớp với student_id của bảng 'students'
-                    as: 'student_info'           // Kết quả trả về nằm trong mảng 'student_info'
+                    from: 'students',
+                    localField: 'student_id',
+                    foreignField: 'student_id',
+                    as: 'student_info'
                 }
             },
-            { $sort: { timestamp: -1 } }         // Sắp xếp bài mới nhất lên đầu
+            { $sort: { timestamp: -1 } }
         ]);
         res.json(allResults);
     } catch (err) {
@@ -168,7 +219,7 @@ app.get('/api/admin/results', async (req, res) => {
     }
 });
 
-// 9. Xử lý đường dẫn ảo (SPA) và cổng Server
+// 9. Xử lý SPA và Port
 app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
