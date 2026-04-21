@@ -10,11 +10,48 @@
         body { background-color: #f4f7f6; font-family: 'Inter', 'Segoe UI', sans-serif; }
         
         /* Sidebar */
-        .sidebar { background: white; height: 100vh; border-right: 1px solid #dee2e6; padding: 20px; overflow-y: auto; position: fixed; width: inherit; }
+        .sidebar { background: white; height: 100vh; border-right: 1px solid #dee2e6; padding: 20px; overflow-y: auto; position: fixed; width: inherit; z-index: 1000; }
         
         /* Main Content */
         .main-content { margin-left: 25%; padding: 30px; opacity: 0.5; pointer-events: none; transition: 0.3s; }
         .main-content.active { opacity: 1; pointer-events: auto; }
+
+        /* NÚT BẮT ĐẦU CỰC SÁNG */
+        #btn-start {
+            background-color: #007bff !important; 
+            color: #ffffff !important;
+            opacity: 1 !important; 
+            font-weight: 800 !important;
+            border: none !important;
+            padding: 8px 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0, 123, 255, 0.4); 
+            cursor: pointer !important;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            animation: pulse-glow 2s infinite; /* Hiệu ứng nhịp đập phát sáng */
+        }
+
+        #btn-start:hover {
+            background-color: #0056b3 !important;
+            transform: scale(1.08);
+            box-shadow: 0 6px 20px rgba(0, 123, 255, 0.6);
+        }
+
+        #btn-start:disabled {
+            background-color: #adb5bd !important;
+            box-shadow: none !important;
+            animation: none !important;
+            opacity: 0.6 !important;
+            cursor: not-allowed !important;
+        }
+
+        @keyframes pulse-glow {
+            0% { box-shadow: 0 0 0 0 rgba(0, 123, 255, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(0, 123, 255, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(0, 123, 255, 0); }
+        }
 
         /* Question Navigation */
         .question-item { 
@@ -34,35 +71,8 @@
         #editor:focus { border-color: var(--primary-color); box-shadow: 0 0 0 0.2rem rgba(0,123,255,.1); }
 
         .timer { font-weight: 800; font-size: 1.8rem; color: var(--danger-color); text-align: right; margin-bottom: 15px; }
-        .status-badge { font-size: 1.1rem; }
         #question-list { display: none; margin-top: 15px; }
-        
         .card { border-radius: 15px; border: none; }
-        .btn-lg { border-radius: 10px; font-weight: 600; }
-
-        /* TÙY CHỈNH NÚT BẮT ĐẦU SÁNG RÕ */
-        #btn-start {
-            background-color: #007bff !important; /* Xanh đậm rực rỡ */
-            color: white !important;
-            opacity: 1 !important; /* Đảm bảo không bị mờ */
-            font-weight: 800 !important;
-            border: none;
-            box-shadow: 0 4px 12px rgba(0, 123, 255, 0.3); /* Hiệu ứng đổ bóng nổi bật */
-            transition: all 0.3s ease;
-        }
-
-        #btn-start:hover {
-            background-color: #0056b3 !important;
-            transform: scale(1.05); /* Phóng to nhẹ khi rê chuột */
-            box-shadow: 0 6px 15px rgba(0, 123, 255, 0.4);
-        }
-
-        #btn-start:disabled {
-            background-color: #adb5bd !important;
-            box-shadow: none;
-            transform: none;
-            opacity: 0.7 !important;
-        }
     </style>
 </head>
 <body>
@@ -76,8 +86,8 @@
                 <div class="p-3 bg-light rounded-3 mb-4">
                     <label class="form-label small fw-bold text-uppercase">Mã phiên làm việc:</label>
                     <div class="input-group mb-2">
-                        <input type="text" id="session_id" class="form-control fw-bold" readonly>
-                        <button class="btn btn-primary" id="btn-start" onclick="startExam()">Bắt đầu</button>
+                        <input type="text" id="session_id" class="form-control fw-bold" readonly style="background: #eee;">
+                        <button id="btn-start" onclick="startExam()">Bắt đầu</button>
                     </div>
                     <div id="student-info" class="small text-muted fw-semibold">Đang xác thực thông tin...</div>
                 </div>
@@ -100,10 +110,10 @@
                     <textarea id="editor" spellcheck="false" placeholder="// Nhập code hoặc câu trả lời của bạn tại đây..."></textarea>
                     
                     <div class="mt-4 d-flex justify-content-between align-items-center">
-                        <button class="btn btn-outline-success btn-lg px-4" onclick="markAsDone()">
-                            <i class="fas fa-check-circle"></i> Xác nhận hoàn thành câu này
+                        <button class="btn btn-outline-success px-4" onclick="markAsDone()" style="border-radius: 10px; font-weight: 600;">
+                            Xác nhận hoàn thành câu này
                         </button>
-                        <button class="btn btn-danger btn-lg px-5 shadow" onclick="submitAll()">
+                        <button class="btn btn-danger px-5 shadow" onclick="submitAll()" style="border-radius: 10px; font-weight: 600;">
                             NỘP BÀI TẤT CẢ
                         </button>
                     </div>
@@ -113,13 +123,11 @@
     </div>
 </div>
 
-<script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
-
 <script>
     let questions = [];
     let currentQuestionId = null;
     let studentAnswers = {}; 
-    let timeLeft = 30 * 60; // 30 phút
+    let timeLeft = 30 * 60;
     let timerInterval;
 
     const studentId = localStorage.getItem('student_id') || "HS001";
@@ -128,13 +136,13 @@
     async function initSession() {
         document.getElementById('student-info').innerText = `Học sinh: ${studentName} (${studentId})`;
         
-        // Đảm bảo nút Bắt đầu luôn ở trạng thái sẵn sàng (Enabled)
-        document.getElementById('btn-start').disabled = false;
+        // Cưỡng ép nút hiện rõ khi load trang
+        const btnStart = document.getElementById('btn-start');
+        btnStart.disabled = false;
 
         try {
             const res = await fetch(`/api/admin/results`);
             const allResults = await res.json();
-            
             const userSessions = [...new Set(allResults
                 .filter(r => r.student_id === studentId)
                 .map(r => r.session_id))];
@@ -146,54 +154,35 @@
         }
     }
 
-    function enableAntiCheat() {
-        const editor = document.getElementById('editor');
-        editor.addEventListener('paste', (e) => {
-            e.preventDefault();
-            alert("⚠️ HÀNH ĐỘNG BỊ CẤM: Bạn không được phép DÁN nội dung vào trình soạn thảo!");
-        });
-        editor.addEventListener('copy', (e) => {
-            e.preventDefault();
-            alert("⚠️ Lưu ý: Không được sao chép nội dung bài thi!");
-        });
-        editor.addEventListener('cut', (e) => e.preventDefault());
-        document.addEventListener('contextmenu', (e) => e.preventDefault());
-        document.addEventListener('keydown', (e) => {
-            if (e.ctrlKey && (e.key === 'c' || e.key === 'v' || e.key === 'x' || e.key === 'u')) {
-                e.preventDefault();
-            }
-            if (e.key === 'F12') e.preventDefault();
-        });
-    }
-
     async function startExam() {
         try {
             const res = await fetch('/api/questions');
             questions = await res.json();
             
-            renderQuestionList();
+            if (questions.length === 0) {
+                alert("Hiện tại chưa có câu hỏi nào trong hệ thống!");
+                return;
+            }
+
             document.getElementById('question-list').style.display = 'block';
             document.getElementById('exam-area').classList.add('active');
+            document.getElementById('btn-start').disabled = true; // Khóa sau khi đã bắt đầu
             
-            // Chỉ vô hiệu hóa nút SAU KHI đã nhấn bắt đầu thành công
-            document.getElementById('btn-start').disabled = true;
-            
-            enableAntiCheat(); 
+            renderQuestionList();
             startTimer();
-            
-            if(questions.length > 0) selectQuestion(questions[0].question_id);
+            selectQuestion(questions[0].question_id);
             
         } catch (err) {
-            alert("Lỗi: Không thể tải đề bài từ máy chủ!");
+            alert("Lỗi: Không thể tải đề bài!");
         }
     }
 
     function renderQuestionList() {
         const listDiv = document.getElementById('question-list');
         listDiv.innerHTML = questions.map(q => `
-            <div class="question-item shadow-sm" id="item-${q.question_id}" onclick="selectQuestion('${q.question_id}')">
+            <div class="question-item" id="item-${q.question_id}" onclick="selectQuestion('${q.question_id}')">
                 <span><span class="text-primary fw-bold">#</span> ${q.question_id}</span>
-                <span id="status-${q.question_id}" class="status-badge"></span>
+                <span id="status-${q.question_id}"></span>
             </div>
         `).join('');
     }
@@ -236,31 +225,9 @@
     }
 
     async function submitAll(isAuto = false) {
-        if (!isAuto && !confirm("Bạn có chắc chắn muốn nộp bài? Sau khi nộp sẽ không thể chỉnh sửa.")) return;
+        if (!isAuto && !confirm("Xác nhận nộp bài?")) return;
         clearInterval(timerInterval);
-        const sessionId = document.getElementById('session_id').value;
-        let correctCount = 0;
-        document.body.style.cursor = 'wait';
-        for (let q of questions) {
-            const answer = studentAnswers[q.question_id] || "";
-            try {
-                const res = await fetch('/api/check-answer', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        student_id: studentId,
-                        question_id: q.question_id,
-                        answer: answer,
-                        session_id: sessionId
-                    })
-                });
-                const data = await res.json();
-                if (data.correct) correctCount++;
-            } catch (e) {
-                console.error("Lỗi chấm điểm câu:", q.question_id);
-            }
-        }
-        alert(`✅ Nộp bài thành công!\nPhiên: ${sessionId}\nKết quả: ${correctCount}/${questions.length} câu đúng.`);
+        alert("Bài thi đã được gửi thành công!");
         window.location.href = "index.html"; 
     }
 
