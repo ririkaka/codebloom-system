@@ -39,6 +39,8 @@
             width: 100%; height: 480px; font-family: 'Fira Code', 'Consolas', monospace; 
             padding: 20px; border-radius: 12px; border: 1px solid #ced4da; font-size: 15px;
             background-color: #ffffff; line-height: 1.6; outline: none; resize: none;
+            /* Ngăn chặn lựa chọn văn bản bằng CSS để tăng cường bảo mật */
+            user-select: none; 
         }
         #editor:focus { border-color: var(--primary-color); box-shadow: 0 0 0 0.2rem rgba(0,123,255,.1); }
 
@@ -132,6 +134,36 @@
     const studentId = localStorage.getItem('student_id') || "HS001";
     const studentName = localStorage.getItem('student_name') || "Học sinh";
 
+    // --- CHỨC NĂNG CHỐNG COPY-PASTE ---
+    function enableAntiCheat() {
+        const editor = document.getElementById('editor');
+
+        // 1. Chặn chuột phải (Context Menu) trên vùng làm bài
+        editor.addEventListener('contextmenu', e => e.preventDefault());
+
+        // 2. Chặn các sự kiện Paste (Dán), Copy (Sao chép), Cut (Cắt)
+        editor.addEventListener('paste', e => {
+            e.preventDefault();
+            alert("⚠️ Hành động DÁN bị cấm để đảm bảo tính công bằng!");
+        });
+
+        editor.addEventListener('copy', e => {
+            e.preventDefault();
+            alert("⚠️ Hành động COPY bị cấm!");
+        });
+
+        editor.addEventListener('cut', e => {
+            e.preventDefault();
+        });
+
+        // 3. Chặn phím tắt hệ thống (Ctrl+C, Ctrl+V, Ctrl+X, Ctrl+A)
+        editor.addEventListener('keydown', e => {
+            if (e.ctrlKey && ['c', 'v', 'x', 'a'].includes(e.key.toLowerCase())) {
+                e.preventDefault();
+            }
+        });
+    }
+
     async function initSession() {
         document.getElementById('student-info').innerText = `Học sinh: ${studentName} (${studentId})`;
         
@@ -142,12 +174,10 @@
             const res = await fetch(`/api/admin/results`);
             const allResults = await res.json();
             
-            // Lọc các phiên đã làm dựa trên studentId
             const userSessions = [...new Set(allResults
                 .filter(r => r.student_id === studentId)
                 .map(r => r.session_id))];
             
-            // Chuyển đổi tên hiển thị sang PHIÊN
             const nextSessionNum = userSessions.length + 1;
             document.getElementById('session_id').value = `PHIÊN_${nextSessionNum.toString().padStart(3, '0')}`;
         } catch (err) {
@@ -169,6 +199,9 @@
             document.getElementById('question-list').style.display = 'block';
             document.getElementById('exam-area').classList.add('active');
             document.getElementById('btn-start').disabled = true;
+            
+            // Kích hoạt chống gian lận
+            enableAntiCheat();
             
             startTimer();
             selectQuestion(questions[0].question_id);
@@ -242,7 +275,7 @@
                         student_id: studentId,
                         question_id: q.question_id,
                         answer: answer,
-                        session_id: currentSessionId // Gửi chuỗi "PHIÊN_xxx" lên server
+                        session_id: currentSessionId 
                     })
                 });
                 const data = await res.json();
