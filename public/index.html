@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Làm bài - CodeBloom</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
         :root { --primary-color: #007bff; --success-color: #28a745; --danger-color: #dc3545; }
         body { background-color: #f4f7f6; font-family: 'Inter', 'Segoe UI', sans-serif; }
@@ -39,7 +40,6 @@
             width: 100%; height: 480px; font-family: 'Fira Code', 'Consolas', monospace; 
             padding: 20px; border-radius: 12px; border: 1px solid #ced4da; font-size: 15px;
             background-color: #ffffff; line-height: 1.6; outline: none; resize: none;
-            /* Ngăn chặn lựa chọn văn bản bằng CSS để tăng cường bảo mật */
             user-select: none; 
         }
         #editor:focus { border-color: var(--primary-color); box-shadow: 0 0 0 0.2rem rgba(0,123,255,.1); }
@@ -48,7 +48,7 @@
         #question-list { display: none; margin-top: 15px; }
         .card { border-radius: 15px; border: none; }
 
-        /* NÚT BẮT ĐẦU SÁNG RÕ */
+        /* NÚT BẮT ĐẦU */
         #btn-start {
             background-color: #007bff !important; 
             color: white !important;
@@ -137,26 +137,16 @@
     // --- CHỨC NĂNG CHỐNG COPY-PASTE ---
     function enableAntiCheat() {
         const editor = document.getElementById('editor');
-
-        // 1. Chặn chuột phải (Context Menu) trên vùng làm bài
         editor.addEventListener('contextmenu', e => e.preventDefault());
-
-        // 2. Chặn các sự kiện Paste (Dán), Copy (Sao chép), Cut (Cắt)
         editor.addEventListener('paste', e => {
             e.preventDefault();
             alert("⚠️ Hành động DÁN bị cấm để đảm bảo tính công bằng!");
         });
-
         editor.addEventListener('copy', e => {
             e.preventDefault();
             alert("⚠️ Hành động COPY bị cấm!");
         });
-
-        editor.addEventListener('cut', e => {
-            e.preventDefault();
-        });
-
-        // 3. Chặn phím tắt hệ thống (Ctrl+C, Ctrl+V, Ctrl+X, Ctrl+A)
+        editor.addEventListener('cut', e => e.preventDefault());
         editor.addEventListener('keydown', e => {
             if (e.ctrlKey && ['c', 'v', 'x', 'a'].includes(e.key.toLowerCase())) {
                 e.preventDefault();
@@ -166,14 +156,11 @@
 
     async function initSession() {
         document.getElementById('student-info').innerText = `Học sinh: ${studentName} (${studentId})`;
-        
-        const startBtn = document.getElementById('btn-start');
-        startBtn.disabled = false;
+        document.getElementById('btn-start').disabled = false;
 
         try {
             const res = await fetch(`/api/admin/results`);
             const allResults = await res.json();
-            
             const userSessions = [...new Set(allResults
                 .filter(r => r.student_id === studentId)
                 .map(r => r.session_id))];
@@ -200,9 +187,7 @@
             document.getElementById('exam-area').classList.add('active');
             document.getElementById('btn-start').disabled = true;
             
-            // Kích hoạt chống gian lận
             enableAntiCheat();
-            
             startTimer();
             selectQuestion(questions[0].question_id);
             
@@ -262,29 +247,58 @@
         if (!isAuto && !confirm("Bạn có chắc chắn muốn nộp bài?")) return;
         
         clearInterval(timerInterval);
-        const currentSessionId = document.getElementById('session_id').value;
-        let correctCount = 0;
-
-        for (let q of questions) {
-            const answer = studentAnswers[q.question_id] || "";
-            try {
-                const res = await fetch('/api/check-answer', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        student_id: studentId,
-                        question_id: q.question_id,
-                        answer: answer,
-                        session_id: currentSessionId 
-                    })
-                });
-                const data = await res.json();
-                if (data.correct) correctCount++;
-            } catch (e) { console.error("Lỗi chấm câu:", q.question_id); }
+        
+        // Lưu câu trả lời hiện tại trước khi nộp
+        if (currentQuestionId) {
+            studentAnswers[currentQuestionId] = document.getElementById('editor').value;
         }
 
-        alert(`✅ Nộp bài thành công!\nMã phiên: ${currentSessionId}\nKết quả: ${correctCount}/${questions.length}`);
-        window.location.href = "index.html"; 
+        const currentSessionId = document.getElementById('session_id').value;
+
+        // 1. Gửi toàn bộ bài làm lên server để chấm
+        const submitPromises = questions.map(q => {
+            const answer = studentAnswers[q.question_id] || "";
+            return fetch('/api/check-answer', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    student_id: studentId,
+                    question_id: q.question_id,
+                    answer: answer,
+                    session_id: currentSessionId 
+                })
+            });
+        });
+
+        await Promise.all(submitPromises);
+
+        // 2. Lấy thống kê chi tiết từ API summary mới để hiển thị bảng kết quả
+        try {
+            const resSum = await fetch(`/api/session-summary/${studentId}/${currentSessionId}`);
+            const data = await resSum.json();
+
+            if (data.success) {
+                const message = `📊 KẾT QUẢ BÀI LÀM:
+✅ Đúng: ${data.dung}
+❌ Sai: ${data.sai}
+📌 Chưa làm: ${data.chuaLam}
+--------------------------
+Tổng số câu: ${data.tongSoCau}
+
+Bạn có muốn thoát ra không?`;
+
+                if (confirm(message)) {
+                    window.location.href = "index.html"; 
+                }
+            } else {
+                alert("Nộp bài thành công!");
+                window.location.href = "index.html";
+            }
+        } catch (err) {
+            console.error("Lỗi lấy thống kê:", err);
+            alert("Nộp bài thành công!");
+            window.location.href = "index.html";
+        }
     }
 
     window.onload = initSession;

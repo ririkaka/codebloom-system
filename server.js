@@ -4,15 +4,15 @@ const cors = require('cors');
 const path = require('path');
 const { v4: uuidv4 } = require('uuid');
 const bcrypt = require('bcrypt');
-const { exec } = require('child_process'); // Thêm để chạy lệnh g++
-const fs = require('fs'); // Thêm để quản lý file
+const { exec } = require('child_process');
+const fs = require('fs');
 require('dotenv').config();
 
 const app = express();
 app.use(express.json());
 app.use(cors());
 
-// Tự động tạo thư mục 'temp' nếu chưa có để tránh lỗi
+// Tự động tạo thư mục 'temp' nếu chưa có
 const tempDir = path.join(__dirname, 'temp');
 if (!fs.existsSync(tempDir)) {
     fs.mkdirSync(tempDir);
@@ -45,7 +45,7 @@ const questionSchema = new mongoose.Schema({
     question_id: String,
     content: String,
     level: String,
-    test_cases: [{ input: String, expected: String }] // Đổi 'output' thành 'expected' để khớp logic mới
+    test_cases: [{ input: String, expected: String }]
 });
 const Question = mongoose.model('Question', questionSchema, 'questions');
 
@@ -54,7 +54,7 @@ const resultSchema = new mongoose.Schema({
     question_id: String,
     correct: Boolean, 
     answer: String,
-    score: String, // Thêm để lưu tỉ lệ test case đúng (ví dụ: 1/1)
+    score: String, 
     session_id: String,
     timestamp: { type: Date, default: Date.now }
 });
@@ -128,7 +128,7 @@ app.get('/api/questions', async (req, res) => {
     }
 });
 
-// 7. API CHẤM BÀI (ĐÃ CẢI TIẾN TÍCH HỢP G++)
+// 7. API CHẤM BÀI C++
 app.post('/api/check-answer', async (req, res) => {
     const { student_id, question_id, answer, session_id } = req.body;
     
@@ -141,13 +141,10 @@ app.post('/api/check-answer', async (req, res) => {
         const cppPath = path.join(tempDir, `${fileId}.cpp`);
         const exePath = path.join(tempDir, `${fileId}.exe`);
 
-        // 1. Lưu file tạm
         fs.writeFileSync(cppPath, safeCode);
 
-        // 2. Biên dịch bằng g++
         exec(`g++ "${cppPath}" -o "${exePath}"`, async (compileError, stdout, stderr) => {
             if (compileError) {
-                // Lỗi biên dịch (Compile Error)
                 if (fs.existsSync(cppPath)) fs.unlinkSync(cppPath);
                 return res.json({ success: true, correct: false, message: "Lỗi biên dịch!", details: stderr });
             }
@@ -155,51 +152,82 @@ app.post('/api/check-answer', async (req, res) => {
             let passed = 0;
             const testCases = question.test_cases || [];
 
-            // 3. Chạy các Test Case
             for (let test of testCases) {
                 const output = await runCode(exePath, test.input);
-                // Dùng trim() để loại bỏ xuống dòng/dấu cách thừa
                 const expected = (test.expected || test.output || "").toString().trim();
                 if (output.trim() === expected) {
                     passed++;
                 }
             }
 
-            // 4. Dọn dẹp file
             if (fs.existsSync(cppPath)) fs.unlinkSync(cppPath);
             if (fs.existsSync(exePath)) fs.unlinkSync(exePath);
 
-            // 5. Lưu kết quả
             const isCorrect = (testCases.length > 0 && passed === testCases.length);
             const scoreDisplay = `${passed}/${testCases.length}`;
 
-            const newResult = new Result({
-                student_id,
-                question_id,
-                correct: isCorrect,
-                answer: safeCode,
-                score: scoreDisplay,
-                session_id,
-                timestamp: new Date()
-            });
+            // Lưu hoặc cập nhật kết quả (nếu làm lại câu đó trong cùng 1 phiên)
+            await Result.findOneAndUpdate(
+                { student_id, question_id, session_id },
+                { 
+                    correct: isCorrect, 
+                    answer: safeCode, 
+                    score: scoreDisplay, 
+                    timestamp: new Date() 
+                },
+                { upsert: true }
+            );
 
-            await newResult.save();
             res.json({ 
                 success: true, 
                 correct: isCorrect, 
                 passed, 
-                total: testCases.length,
-                message: isCorrect ? "Tuyệt vời! Bạn đã vượt qua tất cả bài kiểm tra." : `Bạn đúng ${passed}/${testCases.length} trường hợp.`
+                total: testCases.length 
             });
         });
 
     } catch (err) {
-        console.error("❌ Lỗi hệ thống chấm bài:", err);
         res.status(500).json({ error: "Lỗi trong quá trình chấm bài" });
     }
 });
 
-// 8. API Admin
+// 8. API BỔ SUNG: Lấy thông tin chi tiết Đúng/Sai/Chưa làm cho thông báo kết quả
+app.get('/api/session-summary/:student_id/:session_id', async (req, res) => {
+    try {
+        const { student_id, session_id } = req.params;
+
+        // Lấy tất cả câu hỏi để biết tổng số bài
+        const allQuestions = await Question.find({}, 'question_id');
+        const totalCount = allQuestions.length;
+
+        // Lấy các bài học sinh đã nộp trong phiên này
+        const studentResults = await Result.find({ student_id, session_id });
+
+        let dung = 0;
+        let sai = 0;
+        const submittedIds = new Set();
+
+        studentResults.forEach(r => {
+            if (r.correct) dung++;
+            else sai++;
+            submittedIds.add(r.question_id);
+        });
+
+        const chuaLam = totalCount - submittedIds.size;
+
+        res.json({
+            success: true,
+            dung,
+            sai,
+            chuaLam,
+            tongSoCau: totalCount
+        });
+    } catch (err) {
+        res.status(500).json({ error: "Lỗi lấy thống kê phiên làm việc" });
+    }
+});
+
+// 9. API Admin
 app.get('/api/admin/results', async (req, res) => {
     try {
         const allResults = await Result.aggregate([
@@ -219,7 +247,7 @@ app.get('/api/admin/results', async (req, res) => {
     }
 });
 
-// 9. Xử lý SPA và Port
+// 10. Xử lý SPA và Port
 app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
