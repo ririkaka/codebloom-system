@@ -39,6 +39,30 @@
         
         .card { border-radius: 15px; border: none; }
         .btn-lg { border-radius: 10px; font-weight: 600; }
+
+        /* TÙY CHỈNH NÚT BẮT ĐẦU SÁNG RÕ */
+        #btn-start {
+            background-color: #007bff !important; /* Xanh đậm rực rỡ */
+            color: white !important;
+            opacity: 1 !important; /* Đảm bảo không bị mờ */
+            font-weight: 800 !important;
+            border: none;
+            box-shadow: 0 4px 12px rgba(0, 123, 255, 0.3); /* Hiệu ứng đổ bóng nổi bật */
+            transition: all 0.3s ease;
+        }
+
+        #btn-start:hover {
+            background-color: #0056b3 !important;
+            transform: scale(1.05); /* Phóng to nhẹ khi rê chuột */
+            box-shadow: 0 6px 15px rgba(0, 123, 255, 0.4);
+        }
+
+        #btn-start:disabled {
+            background-color: #adb5bd !important;
+            box-shadow: none;
+            transform: none;
+            opacity: 0.7 !important;
+        }
     </style>
 </head>
 <body>
@@ -60,8 +84,7 @@
                 
                 <div id="question-list-container">
                     <h6 class="text-secondary fw-bold small text-uppercase">Danh sách câu hỏi</h6>
-                    <div id="question-list">
-                        </div>
+                    <div id="question-list"></div>
                 </div>
             </div>
         </div>
@@ -76,7 +99,7 @@
                 <div class="card-body p-4">
                     <textarea id="editor" spellcheck="false" placeholder="// Nhập code hoặc câu trả lời của bạn tại đây..."></textarea>
                     
-                    <div class="mt-4 d-flex justify-content-between align-items: center">
+                    <div class="mt-4 d-flex justify-content-between align-items-center">
                         <button class="btn btn-outline-success btn-lg px-4" onclick="markAsDone()">
                             <i class="fas fa-check-circle"></i> Xác nhận hoàn thành câu này
                         </button>
@@ -99,18 +122,19 @@
     let timeLeft = 30 * 60; // 30 phút
     let timerInterval;
 
-    // Lấy thông tin từ localStorage (Cần đồng bộ với trang login)
     const studentId = localStorage.getItem('student_id') || "HS001";
     const studentName = localStorage.getItem('student_name') || "Học sinh";
 
-    // 1. Khởi tạo phiên làm việc
     async function initSession() {
         document.getElementById('student-info').innerText = `Học sinh: ${studentName} (${studentId})`;
+        
+        // Đảm bảo nút Bắt đầu luôn ở trạng thái sẵn sàng (Enabled)
+        document.getElementById('btn-start').disabled = false;
+
         try {
             const res = await fetch(`/api/admin/results`);
             const allResults = await res.json();
             
-            // Tìm các phiên duy nhất của học sinh hiện tại
             const userSessions = [...new Set(allResults
                 .filter(r => r.student_id === studentId)
                 .map(r => r.session_id))];
@@ -122,27 +146,18 @@
         }
     }
 
-    // 2. Chống Copy - Paste - Chuột phải (Tính năng yêu cầu)
     function enableAntiCheat() {
         const editor = document.getElementById('editor');
-
-        // Chặn Paste (Dán)
         editor.addEventListener('paste', (e) => {
             e.preventDefault();
             alert("⚠️ HÀNH ĐỘNG BỊ CẤM: Bạn không được phép DÁN nội dung vào trình soạn thảo!");
         });
-
-        // Chặn Copy (Sao chép) và Cut (Cắt)
         editor.addEventListener('copy', (e) => {
             e.preventDefault();
             alert("⚠️ Lưu ý: Không được sao chép nội dung bài thi!");
         });
         editor.addEventListener('cut', (e) => e.preventDefault());
-
-        // Chặn Chuột phải
         document.addEventListener('contextmenu', (e) => e.preventDefault());
-
-        // Chặn phím tắt (Ctrl+C, Ctrl+V, F12)
         document.addEventListener('keydown', (e) => {
             if (e.ctrlKey && (e.key === 'c' || e.key === 'v' || e.key === 'x' || e.key === 'u')) {
                 e.preventDefault();
@@ -151,7 +166,6 @@
         });
     }
 
-    // 3. Bắt đầu làm bài
     async function startExam() {
         try {
             const res = await fetch('/api/questions');
@@ -160,9 +174,11 @@
             renderQuestionList();
             document.getElementById('question-list').style.display = 'block';
             document.getElementById('exam-area').classList.add('active');
+            
+            // Chỉ vô hiệu hóa nút SAU KHI đã nhấn bắt đầu thành công
             document.getElementById('btn-start').disabled = true;
             
-            enableAntiCheat(); // Kích hoạt bảo mật
+            enableAntiCheat(); 
             startTimer();
             
             if(questions.length > 0) selectQuestion(questions[0].question_id);
@@ -186,14 +202,11 @@
         if (currentQuestionId) {
             studentAnswers[currentQuestionId] = document.getElementById('editor').value;
         }
-
         currentQuestionId = id;
         const q = questions.find(item => item.question_id === id);
-        
         document.querySelectorAll('.question-item').forEach(el => el.classList.remove('active'));
         document.getElementById(`item-${id}`).classList.add('active');
         document.getElementById('display-question-title').innerText = q.content;
-        
         document.getElementById('editor').value = studentAnswers[id] || "";
         document.getElementById('editor').focus();
     }
@@ -201,8 +214,7 @@
     function markAsDone() {
         if (!currentQuestionId) return;
         studentAnswers[currentQuestionId] = document.getElementById('editor').value;
-        document.getElementById(`status-${currentQuestionId}`).innerHTML = "🟢"; // Đã hoàn thành
-        
+        document.getElementById(`status-${currentQuestionId}`).innerHTML = "🟢"; 
         const currentIndex = questions.findIndex(q => q.question_id === currentQuestionId);
         if (currentIndex < questions.length - 1) {
             selectQuestion(questions[currentIndex + 1].question_id);
@@ -216,7 +228,6 @@
             let secs = timeLeft % 60;
             document.getElementById('time-left').innerText = 
                 `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-            
             if (timeLeft <= 0) {
                 clearInterval(timerInterval);
                 submitAll(true);
@@ -226,14 +237,10 @@
 
     async function submitAll(isAuto = false) {
         if (!isAuto && !confirm("Bạn có chắc chắn muốn nộp bài? Sau khi nộp sẽ không thể chỉnh sửa.")) return;
-
         clearInterval(timerInterval);
         const sessionId = document.getElementById('session_id').value;
         let correctCount = 0;
-
-        // Hiển thị trạng thái đang xử lý
         document.body.style.cursor = 'wait';
-
         for (let q of questions) {
             const answer = studentAnswers[q.question_id] || "";
             try {
@@ -253,9 +260,8 @@
                 console.error("Lỗi chấm điểm câu:", q.question_id);
             }
         }
-
         alert(`✅ Nộp bài thành công!\nPhiên: ${sessionId}\nKết quả: ${correctCount}/${questions.length} câu đúng.`);
-        window.location.href = "index.html"; // Quay về trang chủ hoặc logout
+        window.location.href = "index.html"; 
     }
 
     window.onload = initSession;
