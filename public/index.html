@@ -117,7 +117,7 @@
                             <i class="fas fa-check-circle"></i> Xác nhận xong câu này
                         </button>
                         <button class="btn btn-danger btn-lg px-5 shadow" onclick="submitAll()">
-                            NỘP BÀI TẤT CẢ
+                            <i class="fas fa-paper-plane"></i> NỘP BÀI TẤT CẢ
                         </button>
                     </div>
                 </div>
@@ -133,7 +133,7 @@
     let timeLeft = 30 * 60; 
     let timerInterval;
 
-    // --- SỬA TẠI ĐÂY: Lấy giá trị thực tế, không để mặc định cứng ---
+    // Lấy thông tin từ localStorage
     const studentId = localStorage.getItem('student_id');
     const studentName = localStorage.getItem('student_name');
 
@@ -157,15 +157,15 @@
         });
     }
 
+    // --- KHỞI TẠO PHIÊN LÀM VIỆC ---
     async function initSession() {
-        // Kiểm tra nếu không có dữ liệu đăng nhập thì bắt quay về trang chủ/login
         if (!studentId || !studentName) {
             alert("Không tìm thấy thông tin đăng nhập. Vui lòng đăng nhập lại!");
-            window.location.href = "index.html"; 
+            window.location.href = "login.html"; 
             return;
         }
 
-        // Cập nhật tên học sinh lên giao diện
+        // Hiển thị tên học sinh thật từ localStorage
         const displayElement = document.getElementById('student-display');
         if (displayElement) {
             displayElement.innerText = `${studentName} (${studentId})`;
@@ -174,19 +174,27 @@
         document.getElementById('btn-start').disabled = false;
 
         try {
+            // Gọi API lấy kết quả cũ để đếm số phiên
             const res = await fetch(`/api/admin/results`);
             const allResults = await res.json();
+            
+            // Lọc ra các mã phiên duy nhất của học sinh hiện tại
             const userSessions = [...new Set(allResults
                 .filter(r => r.student_id === studentId)
                 .map(r => r.session_id))];
             
+            // Tính số thứ tự phiên tiếp theo
             const nextSessionNum = userSessions.length + 1;
-            document.getElementById('session_id').value = `PHIÊN_${nextSessionNum.toString().padStart(3, '0')}`;
+            
+            // CẬP NHẬT ĐỊNH DẠNG: PHIEN_1, PHIEN_2 (Không dấu, không số 0 thừa)
+            document.getElementById('session_id').value = `PHIEN_${nextSessionNum}`;
         } catch (err) {
-            document.getElementById('session_id').value = `PHIÊN_001`;
+            console.error("Lỗi lấy danh sách phiên:", err);
+            document.getElementById('session_id').value = `PHIEN_1`;
         }
     }
 
+    // --- BẮT ĐẦU LÀM BÀI ---
     async function startExam() {
         try {
             const res = await fetch('/api/questions');
@@ -227,8 +235,10 @@
         }
         currentQuestionId = id;
         const q = questions.find(item => item.question_id === id);
+        
         document.querySelectorAll('.question-item').forEach(el => el.classList.remove('active'));
         document.getElementById(`item-${id}`).classList.add('active');
+        
         document.getElementById('display-question-title').innerText = q.content;
         document.getElementById('editor').value = studentAnswers[id] || "";
         document.getElementById('editor').focus();
@@ -238,6 +248,7 @@
         if (!currentQuestionId) return;
         studentAnswers[currentQuestionId] = document.getElementById('editor').value;
         document.getElementById(`status-${currentQuestionId}`).innerHTML = "🟢"; 
+        
         const currentIndex = questions.findIndex(q => q.question_id === currentQuestionId);
         if (currentIndex < questions.length - 1) {
             selectQuestion(questions[currentIndex + 1].question_id);
@@ -269,6 +280,7 @@
 
         const currentSessionId = document.getElementById('session_id').value;
 
+        // Gửi toàn bộ bài làm lên server
         const submitPromises = questions.map(q => {
             const answer = studentAnswers[q.question_id] || "";
             return fetch('/api/check-answer', {
@@ -286,6 +298,7 @@
         await Promise.all(submitPromises);
 
         try {
+            // Lấy kết quả thống kê từ server
             const resSum = await fetch(`/api/session-summary/${studentId}/${currentSessionId}`);
             const data = await resSum.json();
 
@@ -297,7 +310,7 @@
 --------------------------
 Tổng số câu: ${data.tongSoCau}
 
-Bạn có muốn thoát ra không?`;
+Bạn có muốn quay về trang chủ không?`;
 
                 if (confirm(message)) {
                     window.location.href = "index.html"; 
